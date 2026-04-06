@@ -60,7 +60,7 @@ export function computeFlowHealth(input: ComputeHealthInput): FlowHealthResult {
   } = input;
 
   const now = new Date();
-  const start = parseISO(startDate);
+  const start = startDate;
   const daysElapsed = isValid(start) ? differenceInCalendarDays(now, start) : 0;
 
   // If matter is not active, return simple state
@@ -85,7 +85,7 @@ export function computeFlowHealth(input: ComputeHealthInput): FlowHealthResult {
   // Days in current stage
   let daysInCurrentStage = 0;
   if (currentStage?.startedAt) {
-    const stageStart = parseISO(currentStage.startedAt);
+    const stageStart = currentStage.startedAt;
     if (isValid(stageStart)) daysInCurrentStage = differenceInCalendarDays(now, stageStart);
   }
 
@@ -101,7 +101,7 @@ export function computeFlowHealth(input: ComputeHealthInput): FlowHealthResult {
   for (const step of incompleteCurrentSteps) {
     const dueDate = step.manualDueDate || step.dueDate;
     if (!dueDate) continue;
-    const due = parseISO(dueDate);
+    const due = dueDate;
     if (!isValid(due)) continue;
     const daysUntilDue = differenceInCalendarDays(due, now);
 
@@ -119,7 +119,7 @@ export function computeFlowHealth(input: ComputeHealthInput): FlowHealthResult {
   for (const sp of stageProgress) {
     for (const step of sp.steps) {
       if (step.completedAt) {
-        const completed = parseISO(step.completedAt);
+        const completed = step.completedAt;
         if (isValid(completed)) {
           const days = differenceInCalendarDays(now, completed);
           if (days < daysSinceLastActivity) daysSinceLastActivity = days;
@@ -142,7 +142,7 @@ export function computeFlowHealth(input: ComputeHealthInput): FlowHealthResult {
 
     // Condition 1: Matter exceeded overall due date
     if (controls.breakdownOnPastDue && targetEndDate) {
-      const target = parseISO(targetEndDate);
+      const target = targetEndDate;
       if (isValid(target) && differenceInCalendarDays(target, now) < 0) {
         isBreakdown = true;
         reasons.push("Matter past overall due date");

@@ -17,54 +17,54 @@ import { getCurrentOrg } from "@/lib/tenant";
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getMattersWithHealth, getMatterFlows, getUsers } from "@/lib/data";
-import { prisma } from "@/lib/prisma";
+import { getMattersWithHealth, getMatterFlows, getUsers, getCurrentFirmId } from "@/lib/data";
+import { getDb } from "@/lib/db";
+import type { MatterWithHealth } from "@/types";
 
 export async function GET(request: NextRequest) {
   try {
-    // 1. Await the async context
-    const { orgId } = await getCurrentOrg(); 
+    const firmId = getCurrentOrg().orgId;
+    const db = getDb();
+    const matters = getMattersWithHealth();
+    const flows = getMatterFlows();
+    const users = getUsers();
 
-    // 2. Await all data fetching
-    const [matters, flows, users] = await Promise.all([
-      await getMattersWithHealth(),
-      await getMatterFlows(),
-      await getUsers()
-    ]);
-
+    // Parse query params
     const { searchParams } = new URL(request.url);
     const flowFilter = searchParams.get("flowId") || "";
     const period = parseInt(searchParams.get("period") || "90");
 
+    // Filter by MatterFlow type if specified
     let filtered = matters;
     if (flowFilter) {
       filtered = filtered.filter((m) => m.matterFlowId === flowFilter);
     }
 
-    // 3. Replace raw SQL with Prisma
-    const allMatters = await prisma.matter.findMany({
-      where: { orgId }
-    });
+    // Get closed matters for period calculations
+    const allMatters = db.prepare(
+      "SELECT * FROM matters WHERE firm_id = ?"
+    ).all(firmId) as any[];
 
-    const closedMatters = allMatters.filter((m) => m.status === "completed");
+    const closedMatters = allMatters.filter((m: any) => m.status === "completed");
     const periodCutoff = new Date();
     periodCutoff.setDate(periodCutoff.getDate() - period);
 
-    const closedInPeriod = closedMatters.filter((m) => {
-      if (!m.updatedAt) return false;
-      return new Date(m.updatedAt) >= periodCutoff;
+    const closedInPeriod = closedMatters.filter((m: any) => {
+      if (!m.updated_at) return false;
+      return new Date(m.updated_at) >= periodCutoff;
     });
 
+    // Apply flow filter to closed matters too
     const closedFiltered = flowFilter
-      ? closedInPeriod.filter((m) => m.matterFlowId === flowFilter)
+      ? closedInPeriod.filter((m: any) => m.matter_flow_id === flowFilter)
       : closedInPeriod;
 
     // ── Metric 1: Avg days to close ──
     let avgDaysToClose = 0;
     if (closedFiltered.length > 0) {
-      const totalDays = closedFiltered.reduce((sum, m) => {
-        const start = new Date(m.createdAt);
-        const end = new Date(m.updatedAt!);
+      const totalDays = closedFiltered.reduce((sum: number, m: any) => {
+        const start = new Date(m.created_at);
+        const end = new Date(m.updated_at);
         return sum + Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
       }, 0);
       avgDaysToClose = Math.round(totalDays / closedFiltered.length);
@@ -181,19 +181,59 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.daysSinceActivity - a.daysSinceActivity)
       .slice(0, 5);
 
+    // ── Revenue metrics ──
+    // SaaS NOTE: These calculations work identically with Prisma once data.ts is converted.
+    // All values derive from amountPaid and progressPercent which are already on the Matter model.
+    // For deeper profitability (V2): add cost tracking per matter/associate and compute margins.
+    const totalActiveValue = filtered.reduce((sum, m) => sum + (m.amountPaid || 0), 0);
+    const valueAtRisk = filtered
+      .filter((m) => m.health.status === "out_of_flow" || m.health.status === "flow_breakdown")
+      .reduce((sum, m) => {
+        const remaining = (m.amountPaid || 0) * (1 - m.health.progressPercent / 100);
+        return sum + remaining;
+      }, 0);
+    const closedForRevenue = allMatters.filter((m: any) => m.status === "completed");
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const valueDelivered30d = closedForRevenue
+      .filter((m: any) => m.completedDate && new Date(m.completedDate) >= thirtyDaysAgo)
+      .reduce((sum: number, m: any) => sum + (m.amountPaid || 0), 0);
+    const avgMatterValue = filtered.length > 0 ? Math.round(totalActiveValue / filtered.length) : 0;
+
+    // ── Revenue by associate ──
+    const revenueByAssociate = users.map((u: any) => {
+      const userMatters = filtered.filter((m) => m.assignedUserId === u.id);
+      const totalValue = userMatters.reduce((sum, m) => sum + (m.amountPaid || 0), 0);
+      const valueDelivered = userMatters.reduce((sum, m) => sum + (m.amountPaid || 0) * (m.health.progressPercent / 100), 0);
+      const valueRemaining = totalValue - valueDelivered;
+      const atRisk = userMatters
+        .filter((m) => m.health.status === "out_of_flow" || m.health.status === "flow_breakdown")
+        .reduce((sum, m) => sum + (m.amountPaid || 0) * (1 - m.health.progressPercent / 100), 0);
+      return {
+        id: u.id, name: u.name, activeCount: userMatters.length,
+        totalValue: Math.round(totalValue), valueDelivered: Math.round(valueDelivered),
+        valueRemaining: Math.round(valueRemaining), atRisk: Math.round(atRisk),
+      };
+    }).filter((a) => a.activeCount > 0);
+
     return NextResponse.json({
       avgDaysToClose,
       flowRate,
       bottleneck: { name: bottleneck.name, avgDaysOver: bottleneck.avg },
       closedThisMonth,
       totalActive: filtered.length,
-      stagePerformance: stagePerf || [],
+      totalActiveValue: Math.round(totalActiveValue),
+      valueAtRisk: Math.round(valueAtRisk),
+      valueDelivered30d: Math.round(valueDelivered30d),
+      avgMatterValue,
+      stagePerformance: stagePerf,
       associates: assocStats,
+      revenueByAssociate,
       agingMatters: aging,
-      flows: (flows || []).map((f) => ({ id: f.id, name: f.name })),
+      flows: flows.map((f) => ({ id: f.id, name: f.name })),
     });
   } catch (error) {
     console.error("Command Center API error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load" }, { status: 500 });
   }
 }

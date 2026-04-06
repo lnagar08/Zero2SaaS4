@@ -246,11 +246,11 @@ export default function MatterDetailPage() {
         <div className="rounded-[10px] p-4 bg-[#F9FAFB]">
           <p className="text-[11px] font-medium text-[#999] m-0 mb-1 uppercase tracking-wide">Matter value</p>
           <p className="text-[15px] font-semibold text-[var(--color-text-primary)] m-0">
-            {matter.amountPaid > 0 ? `$${matter.amountPaid.toLocaleString()}` : <span style={{ color: "#CCC" }}>Not set</span>}
+            {(matter.amountPaid ?? 0) > 0 ? `$${(matter.amountPaid ?? 0).toLocaleString()}` : <span style={{ color: "#CCC" }}>Not set</span>}
           </p>
         </div>
-        {matter.amountPaid > 0 && (() => {
-          const valueRemaining = Math.round(matter.amountPaid * (1 - health.progressPercent / 100));
+        {(matter.amountPaid ?? 0) > 0 && (() => {
+          const valueRemaining = Math.round((matter.amountPaid ?? 0) * (1 - health.progressPercent / 100));
           const isAtRisk = health.status === "out_of_flow" || health.status === "flow_breakdown";
           return (
             <div className="rounded-[10px] p-4" style={{ background: isAtRisk ? "#FEF2F2" : "#F9FAFB" }}>
@@ -261,7 +261,7 @@ export default function MatterDetailPage() {
             </div>
           );
         })()}
-        {!(matter.amountPaid > 0) && (
+        {!((matter.amountPaid ?? 0) > 0) && (
           <div className="rounded-[10px] p-4 bg-[#F9FAFB]">
             <p className="text-[11px] font-medium text-[#999] m-0 mb-1 uppercase tracking-wide">Value at risk</p>
             <p className="text-[15px] font-semibold m-0" style={{ color: "#CCC" }}>—</p>
@@ -410,12 +410,22 @@ function EditMatterDialog({ matter, users, onClose, onSaved }: {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[13px] font-medium text-[var(--color-text-secondary)] mb-1.5">Engagement Date</label>
-              <input className="input-field py-2.5" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
+              <input 
+  className="input-field py-2.5" 
+  type="date" 
+  value={form.startDate ? form.startDate.split('T')[0] : ""} 
+  onChange={(e) => setForm({ ...form, startDate: e.target.value })} 
+/>
               <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Changing this may affect step due dates</p>
             </div>
             <div>
               <label className="block text-[13px] font-medium text-[var(--color-text-secondary)] mb-1.5">Overall Due Date</label>
-              <input className="input-field py-2.5" type="date" value={form.targetEndDate} onChange={(e) => setForm({ ...form, targetEndDate: e.target.value })} />
+              <input 
+  className="input-field py-2.5" 
+  type="date" 
+  value={form.targetEndDate ? form.targetEndDate.split('T')[0] : ""} 
+  onChange={(e) => setForm({ ...form, targetEndDate: e.target.value })} 
+/>
             </div>
           </div>
           <div><label className="block text-[13px] font-medium text-[var(--color-text-secondary)] mb-1.5">Description</label><textarea className="input-field py-2.5 resize-none h-20" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>

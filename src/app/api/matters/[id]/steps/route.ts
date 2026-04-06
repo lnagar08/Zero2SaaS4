@@ -9,7 +9,7 @@ export async function POST(
   try {
     const { id } = await params;
     const { stepProgressId } = await request.json();
-    const result = toggleStepCompletion(id, stepProgressId);
+    const result = await toggleStepCompletion(id, stepProgressId);
     return NextResponse.json(result);
   } catch (error: any) {
     console.error("Step toggle error:", error);

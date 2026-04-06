@@ -58,7 +58,7 @@ import type {
   MatterStepProgress,
 } from "@/types";
 import { FLOW_STATUS_LABELS } from "@/types";
-import { differenceInCalendarDays, parseISO, isValid } from "date-fns";
+import { differenceInCalendarDays, parseISO, isValid, format } from "date-fns";
 
 // ============================================================
 // Filter / sort types
@@ -109,21 +109,29 @@ export default function HomePage() {
   const [showImport, setShowImport] = useState(false);
 
   const fetchData = useCallback(async () => {
-    try {
-      const [dashRes, usersRes, flowsRes] = await Promise.all([
-        fetch("/api/dashboard"),
-        fetch("/api/users"),
-        fetch("/api/matterflows"),
-      ]);
-      setData(await dashRes.json());
-      setUsers(await usersRes.json());
-      setFlows(await flowsRes.json());
-    } catch (err) {
-      console.error("Failed to load:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  try {
+    const [dashRes, usersRes, flowsRes] = await Promise.all([
+      fetch("/api/dashboard"),
+      fetch("/api/users"),
+      fetch("/api/matterflows"),
+    ]);
+
+    const dashData = await dashRes.json();
+    const usersData = await usersRes.json();
+    const flowsData = await flowsRes.json();
+
+    setData(dashData);
+    setUsers(Array.isArray(usersData) ? usersData : []); 
+    setFlows(Array.isArray(flowsData) ? flowsData : []);
+
+  } catch (err) {
+    console.error("Failed to load:", err);
+    setUsers([]); 
+  } finally {
+    setLoading(false);
+  }
+}, []);
+
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -609,12 +617,15 @@ function MatterRow({ matter }: { matter: MatterWithHealth }) {
             {viewSteps.map((step) => {
               const isWithClient = step.withClient && !step.isCompleted;
               const dueDate = step.manualDueDate || step.dueDate;
+              const formattedDueDate = dueDate 
+  ? format(typeof dueDate === 'string' ? parseISO(dueDate) : dueDate, "MMM d, yyyy")
+  : null;
               const tooltip = step.isCompleted
                 ? `${step.stepName} ✓`
                 : isWithClient
                   ? `${step.stepName} — With client`
                   : dueDate
-                    ? `${step.stepName} — Due ${dueDate}`
+                    ? `${step.stepName} — Due ${formattedDueDate}`
                     : step.stepName;
               return (
                 <div key={step.id} className="flex-1 flex flex-col group/tip relative" style={{ height: "100%", justifyContent: isWithClient ? "flex-start" : "flex-end" }}>
@@ -773,7 +784,8 @@ function CreateMatterDialog({
   // Compute due date warning
   const selectedFlow = flows.find((f) => f.id === form.matterFlowId);
   const totalFlowDays = selectedFlow
-    ? selectedFlow.stages.reduce((sum, s) => sum + (s.expectedDurationDays || 0), 0)
+    //? selectedFlow.stages.reduce((sum, s) => sum + (s.expectedDurationDays || 0), 0)
+    ? selectedFlow.stages.reduce((sum, s) => sum + (s.defaultDurationDays || 0), 0)
     : 0;
 
   let dueDateWarning = "";

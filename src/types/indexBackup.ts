@@ -17,7 +17,7 @@ export type UserRole = "owner" | "associate" | "admin";
 
 export interface User {
   id: string;
-  firmId: string;
+  orgId: string;
   email: string;
   name: string;
   role: UserRole;
@@ -33,8 +33,9 @@ export interface MatterFlow {
   firmId: string;
   name: string;
   description?: string;
-  isPublic: boolean;
   isDefault: boolean;
+  isPublic: boolean;
+  publishedAt?: string;
   stages: FlowStage[];
   createdAt: string;
   updatedAt: string;
@@ -211,5 +212,4 @@ export interface MatterWithHealth extends Matter {
   health: FlowHealthResult;
   assignedUserName?: string;
   matterFlowName?: string;
-  amountPaid:number
 }

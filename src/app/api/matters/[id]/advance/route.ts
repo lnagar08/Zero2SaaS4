@@ -8,7 +8,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const matter = advanceStage(id);
+    const matter = await advanceStage(id);
     return NextResponse.json(matter);
   } catch (error: any) {
     console.error("Advance stage error:", error);

@@ -13,40 +13,39 @@ import { getCurrentOrg } from "@/lib/tenant";
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/db";
+import { getCurrentFirmId } from "@/lib/data";
 
 export async function GET(request: NextRequest) {
   try {
-    const { orgId } = await getCurrentOrg();
-    
+    const firmId = getCurrentOrg().orgId;
+    const db = getDb();
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q") || "";
 
-    const clients = await prisma.matter.findMany({
-      where: {
-        orgId: orgId,
-        clientName: q ? { contains: q } : undefined,
-      },
-      select: {
-        clientName: true,
-        clientCompany: true,
-        clientEmail: true,
-      },
-      distinct: ['clientName', 'clientCompany', 'clientEmail'],
-      orderBy: { clientName: 'asc' },
-      take: q ? 10 : 20,
-    });
+    let clients;
+    if (q) {
+      clients = db.prepare(
+        `SELECT DISTINCT client_name, client_company, client_email 
+         FROM matters WHERE firm_id = ? AND client_name LIKE ? 
+         ORDER BY client_name LIMIT 10`
+      ).all(firmId, `%${q}%`);
+    } else {
+      clients = db.prepare(
+        `SELECT DISTINCT client_name, client_company, client_email 
+         FROM matters WHERE firm_id = ? 
+         ORDER BY client_name LIMIT 20`
+      ).all(firmId);
+    }
 
     return NextResponse.json(
-      clients.map((c) => ({
-        clientName: c.clientName,
-        clientCompany: c.clientCompany || "",
-        clientEmail: c.clientEmail || "",
+      (clients as any[]).map((c) => ({
+        clientName: c.client_name,
+        clientCompany: c.client_company || "",
+        clientEmail: c.client_email || "",
       }))
     );
   } catch (error) {
-    console.error("Clients API error:", error);
     return NextResponse.json([], { status: 500 });
   }
 }
-

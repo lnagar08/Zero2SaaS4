@@ -4,7 +4,7 @@ import { getMatters, createMatter } from "@/lib/data";
 
 export async function GET() {
   try {
-    const matters = getMatters();
+    const matters = await getMatters();
     return NextResponse.json(matters);
   } catch (error) {
     console.error("Matters GET error:", error);
@@ -15,7 +15,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const matter = createMatter(body);
+    const matter = await createMatter(body);
     return NextResponse.json(matter, { status: 201 });
   } catch (error: any) {
     console.error("Matters POST error:", error);

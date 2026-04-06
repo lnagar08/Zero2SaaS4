@@ -6,91 +6,91 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// ── MasterSaaS Core Tables ──
+// ── SaaS Core Tables ──
 model Organization {
-  id                  String                @id @default(uuid())
-  name                String
-  slug                String                @unique
-  stripeCustomerId    String?               @unique
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  users               User[]
-  invitations         Invitation[]
-  subscription        Subscription?
-  // Product model relations are auto-added by Prisma when orgId fields reference Organization
-  MatterFlow          MatterFlow[]
-  FlowStage           FlowStage[]
-  FlowStep            FlowStep[]
-  Matter              Matter[]
-  MatterStageProgress MatterStageProgress[]
-  MatterStepProgress  MatterStepProgress[]
-  FlowControl         FlowControl[]
+  id               String   @id @default(uuid())
+  name             String
+  slug             String   @unique
+  stripeCustomerId String?  @unique
+  brandColor       String   @default("#1e3a5f")
+  brandTagline     String   @default("")
+  brandLogoText    String   @default("")
+  brandLogoUrl     String   @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  users            User[]
+  invitations      Invitation[]
+  subscription     Subscription?
+  matterFlows      MatterFlow[]
+  flowStages       FlowStage[]
+  flowSteps        FlowStep[]
+  matters          Matter[]
+  matterStageProgress MatterStageProgress[]
+  matterStepProgress  MatterStepProgress[]
+  flowControls     FlowControl[]
 }
 
 model User {
-  id            String       @id @default(uuid())
+  id            String   @id @default(uuid())
   orgId         String
   org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  email         String       @unique
+  email         String   @unique
   name          String
   passwordHash  String?
-  role          Role         @default(MEMBER)
+  role          Role     @default(MEMBER)
   emailVerified DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   accounts      Account[]
   sessions      Session[]
-
   @@index([orgId])
 }
 
-enum Role {
-  OWNER
+enum Role { 
+  OWNER 
   ADMIN
-  MEMBER
+  MEMBER 
 }
 
 model Subscription {
-  id                   String             @id @default(uuid())
-  orgId                String             @unique
-  org                  Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  stripeSubscriptionId String             @unique
+  id                   String   @id @default(uuid())
+  orgId                String   @unique
+  org                  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  stripeSubscriptionId String   @unique
   stripePriceId        String
   status               SubscriptionStatus
   currentPeriodStart   DateTime
   currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean            @default(false)
+  cancelAtPeriodEnd    Boolean  @default(false)
   trialEnd             DateTime?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
-enum SubscriptionStatus {
-  TRIALING
-  ACTIVE
-  PAST_DUE
-  CANCELED
-  UNPAID
+enum SubscriptionStatus { 
+  TRIALING 
+  ACTIVE 
+  PAST_DUE 
+  CANCELED 
+  UNPAID 
 }
 
 model Invitation {
-  id        String       @id @default(uuid())
+  id        String   @id @default(uuid())
   orgId     String
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   email     String
-  role      Role         @default(MEMBER)
-  token     String       @unique @default(uuid())
+  role      Role     @default(MEMBER)
+  token     String   @unique @default(uuid())
   expiresAt DateTime
-  createdAt DateTime     @default(now())
-
+  createdAt DateTime @default(now())
   @@index([orgId])
 }
 
 model Account {
-  id                String  @id @default(uuid())
+  id                String @id @default(uuid())
   userId            String
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   type              String
   provider          String
   providerAccountId String
@@ -100,7 +100,6 @@ model Account {
   token_type        String?
   scope             String?
   id_token          String?
-
   @@unique([provider, providerAccountId])
 }
 
@@ -114,131 +113,138 @@ model Session {
 
 model VerificationToken {
   identifier String
-  token      String   @unique
+  token      String @unique
   expires    DateTime
-
   @@unique([identifier, token])
 }
 
 // ══════════════════════════════════════════
-// YOUR PRODUCT TABLES
-// Extracted from SQLite schema and converted to Prisma.
-// orgId added to every table for multi-tenancy.
+// PRODUCT TABLES — MatterGuardian
 // ══════════════════════════════════════════
 model MatterFlow {
-  id          String       @id @default(uuid())
+  id          String   @id @default(uuid())
   orgId       String
-  org         Organization @relation(fields: [orgId], references: [id])
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   name        String
   description String?
-  isDefault   Int          @default(0)
-  isPublic    Int          @default(0)
-  publishedAt String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @default(now())
-
+  isDefault   Boolean  @default(false)
+  isPublic    Boolean  @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  stages      FlowStage[]
+  matters     Matter[]
   @@index([orgId])
 }
 
 model FlowStage {
-  id                  String       @id @default(uuid())
-  matterFlowId        String
-  name                String
-  sortOrder           Int          @default(0)
-  defaultDurationDays Int?
-  createdAt           DateTime     @default(now())
+  id                  String   @id @default(uuid())
   orgId               String
-  org                 Organization @relation(fields: [orgId], references: [id])
-
+  org                 Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  matterFlowId        String
+  matterFlow          MatterFlow @relation(fields: [matterFlowId], references: [id], onDelete: Cascade)
+  name                String
+  sortOrder           Int      @default(0)
+  defaultDurationDays Int?
+  createdAt           DateTime @default(now())
+  steps               FlowStep[]
   @@index([orgId])
+  @@index([matterFlowId])
 }
 
 model FlowStep {
-  id            String       @id @default(uuid())
+  id            String   @id @default(uuid())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   stageId       String
+  stage         FlowStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
   name          String
   description   String?
-  sortOrder     Int          @default(0)
+  sortOrder     Int      @default(0)
   dueDaysOffset Int?
-  isRequired    Int          @default(1)
-  createdAt     DateTime     @default(now())
-  orgId         String
-  org           Organization @relation(fields: [orgId], references: [id])
-
+  isRequired    Boolean  @default(true)
+  createdAt     DateTime @default(now())
   @@index([orgId])
+  @@index([stageId])
 }
 
 model Matter {
-  id              String       @id @default(uuid())
+  id              String   @id @default(uuid())
   orgId           String
-  org             Organization @relation(fields: [orgId], references: [id])
+  org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   matterFlowId    String
+  matterFlow      MatterFlow @relation(fields: [matterFlowId], references: [id], onDelete: Cascade)
   referenceNumber String?
   name            String
   clientName      String
   clientCompany   String?
   clientEmail     String?
   description     String?
-  status          String       @default("active")
+  status          String   @default("active")
   assignedUserId  String?
   currentStageId  String?
-  startDate       String
-  targetEndDate   String?
-  completedDate   String?
-  amountPaid      Float        @default(0)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @default(now())
-
+  startDate       DateTime @default(now())
+  targetEndDate   DateTime?
+  completedDate   DateTime?
+  amountPaid      Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  stageProgress   MatterStageProgress[]
   @@index([orgId])
+  @@index([assignedUserId])
+  @@index([matterFlowId])
 }
 
 model MatterStageProgress {
-  id          String       @id @default(uuid())
+  id          String    @id @default(uuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   matterId    String
+  matter      Matter    @relation(fields: [matterId], references: [id], onDelete: Cascade)
   stageId     String
   stageName   String
-  sortOrder   Int          @default(0)
-  startedAt   String?
-  completedAt String?
-  orgId       String
-  org         Organization @relation(fields: [orgId], references: [id])
-
+  sortOrder   Int       @default(0)
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  steps       MatterStepProgress[]
   @@index([orgId])
+  @@index([matterId])
 }
 
 model MatterStepProgress {
-  id                    String       @id @default(uuid())
+  id                    String    @id @default(uuid())
+  orgId                 String
+  org                   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   matterStageProgressId String
+  matterStageProgress   MatterStageProgress @relation(fields: [matterStageProgressId], references: [id], onDelete: Cascade)
   stepId                String
   stepName              String
-  sortOrder             Int          @default(0)
-  isRequired            Int          @default(1)
-  isCompleted           Int          @default(0)
-  completedAt           String?
-  dueDate               String?
-  manualDueDate         String?
+  sortOrder             Int       @default(0)
+  isRequired            Boolean   @default(true)
+  isCompleted           Boolean   @default(false)
+  completedAt           DateTime?
+  dueDate               DateTime?
+  manualDueDate         DateTime?
   notes                 String?
-  withClient            Int          @default(0)
-  orgId                 String
-  org                   Organization @relation(fields: [orgId], references: [id])
-
+  withClient            Boolean   @default(false)
+  withClientSince       DateTime?
   @@index([orgId])
+  @@index([matterStageProgressId])
 }
 
 model FlowControl {
-  id                       String       @id @default(uuid())
-  orgId                    String
-  org                      Organization @relation(fields: [orgId], references: [id])
-  dueSoonWindowDays        Int          @default(2)
-  stageRiskThresholdDays   Int          @default(14)
-  graceWindowDays          Int          @default(2)
-  breakdownOnPastDue       Int          @default(1)
-  breakdownOnInactivity    Int          @default(1)
-  breakdownInactivityDays  Int          @default(14)
-  breakdownOnStepOverdue   Int          @default(1)
-  breakdownStepOverdueDays Int          @default(21)
-  createdAt                DateTime     @default(now())
-  updatedAt                DateTime     @default(now())
-
-  @@index([orgId])
+  id                       String   @id @default(uuid())
+  orgId                    String   @unique
+  org                      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  dueSoonWindowDays        Int      @default(2)
+  stageRiskThresholdDays   Int      @default(14)
+  graceWindowDays          Int      @default(2)
+  breakdownOnPastDue       Boolean  @default(true)
+  breakdownOnInactivity    Boolean  @default(true)
+  breakdownInactivityDays  Int      @default(14)
+  breakdownOnStepOverdue   Boolean  @default(true)
+  breakdownStepOverdueDays Int      @default(21)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }

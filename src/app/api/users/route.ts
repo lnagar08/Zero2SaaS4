@@ -4,8 +4,8 @@ import { getUsers, ensureDefaultUser } from "@/lib/data";
 
 export async function GET() {
   try {
-    ensureDefaultUser();
-    const users = getUsers();
+    await ensureDefaultUser();
+    const users = await getUsers();
     return NextResponse.json(users);
   } catch (error) {
     return NextResponse.json({ error: "Failed to load" }, { status: 500 });

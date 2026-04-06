@@ -1,31 +1,52 @@
 // TODO: Add tenant scoping — const { orgId } = await getCurrentOrg();
+import { getCurrentOrg } from "@/lib/tenant";
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
-/**
- * SaaS NOTE: Convert to Prisma:
- * - prisma.matterStepProgress.findUnique({ where: { id: stepProgressId } })
- * - prisma.matterStepProgress.update({ where: { id }, data: { withClient, withClientSince } })
- * - Add orgId check to ensure the step belongs to the current org
- */export async function POST(
+export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: matterId } = await params;
     const { stepProgressId } = await request.json();
-    const db = getDb();
+    const { orgId } = await getCurrentOrg();
 
-    const row = db.prepare("SELECT * FROM matter_step_progress WHERE id = ?").get(stepProgressId) as any;
-    if (!row) return NextResponse.json({ error: "Step not found" }, { status: 404 });
+    const row = await prisma.matterStepProgress.findUnique({
+      where: { id: stepProgressId, orgId },
+    });
 
-    const newValue = row.with_client ? 0 : 1;
+    if (!row) {
+      return NextResponse.json({ error: "Step not found" }, { status: 404 });
+    }
+
+    const newValue = !row.withClient;
     const since = newValue ? new Date().toISOString() : null;
-    db.prepare("UPDATE matter_step_progress SET with_client = ?, with_client_since = ? WHERE id = ?").run(newValue, since, stepProgressId);
-    db.prepare("UPDATE matters SET updated_at = ? WHERE id = ?").run(new Date().toISOString(), id);
 
-    return NextResponse.json({ withClient: !!newValue });
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedStep = await tx.matterStepProgress.update({
+        where: { id: stepProgressId },
+        data: {
+          withClient: newValue,
+          withClientSince: since,
+        },
+      });
+
+      await tx.matter.update({
+        where: { id: matterId },
+        data: { updatedAt: new Date() },
+      });
+
+      return updatedStep;
+    });
+
+    return NextResponse.json({ withClient: result.withClient });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed" }, { status: 400 });
+    console.error("Toggle withClient error:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed" }, 
+      { status: 400 }
+    );
   }
 }
+

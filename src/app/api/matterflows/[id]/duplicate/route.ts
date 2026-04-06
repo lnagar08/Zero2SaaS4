@@ -9,7 +9,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const flow = duplicateMatterFlow(id);
+    const flow = await duplicateMatterFlow(id);
     return NextResponse.json(flow, { status: 201 });
   } catch (error: any) {
     console.error("Duplicate MatterFlow error:", error);

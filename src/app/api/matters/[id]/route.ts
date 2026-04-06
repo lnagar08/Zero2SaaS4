@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const matter = getMatter(id);
+    const matter = await getMatter(id);
     if (!matter) {
       return NextResponse.json({ error: "Matter not found" }, { status: 404 });
     }
@@ -26,7 +26,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const matter = updateMatter(id, body);
+    const matter = await updateMatter(id, body);
     return NextResponse.json(matter);
   } catch (error: any) {
     console.error("Matter PATCH error:", error);
@@ -40,7 +40,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    deleteMatter(id);
+    await deleteMatter(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Matter DELETE error:", error);

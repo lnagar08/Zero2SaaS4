@@ -158,7 +158,9 @@ export default function MatterFlowEditorPage() {
 
   if (loading) return <PageLoader />;
   if (!flow) return null;
-  const selectedStage = flow.stages[selectedStageIdx];
+  //const selectedStage = flow.stages[selectedStageIdx];
+  const stages = flow?.stages || [];
+  const selectedStage = stages[selectedStageIdx] || null;
 
   return (
     <div>
@@ -194,8 +196,14 @@ export default function MatterFlowEditorPage() {
               {publishing ? "..." : flow.isPublic ? "Unpublish" : "Publish to Public Library"}
             </button>
           )}
-          <button onClick={handleSaveClick} disabled={saving || !flow.name.trim()} className={clsx("btn-primary flex items-center gap-2 text-[15px] py-2 px-4", (saving || !flow.name.trim()) && "opacity-50 cursor-not-allowed")}>
-            {saved ? <Check className="w-[18px] h-[18px]" /> : <Save className="w-[18px] h-[18px]" />}
+          <button 
+          onClick={handleSaveClick} 
+          disabled={saving || !flow?.name?.trim()} 
+          className={clsx(
+            "btn-primary flex items-center gap-2 text-[15px] py-2 px-4", 
+            (saving || !flow?.name?.trim()) && "opacity-50 cursor-not-allowed"
+          )}
+        >
             {saving ? "Saving..." : saved ? "Saved!" : "Save"}
           </button>
         </div>
@@ -219,7 +227,7 @@ export default function MatterFlowEditorPage() {
             <button onClick={addStage} className="text-[14px] text-[var(--color-mf-600)] hover:text-[var(--color-mf-700)] flex items-center gap-1 cursor-pointer font-medium"><Plus className="w-4 h-4" /> Add Stage</button>
           </div>
           <div className="space-y-1.5">
-            {flow.stages.map((stage, idx) => (
+            {(flow?.stages || []).map((stage, idx) => (
               <button key={stage.id} onClick={() => setSelectedStageIdx(idx)} className={clsx("w-full flex items-center gap-3 px-4 py-4 rounded-[16px] text-left transition-all cursor-pointer shadow-[var(--shadow-card)]", selectedStageIdx === idx ? "bg-[var(--color-surface-card)] ring-[1.5px] ring-[var(--color-mf-400)]" : "bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)]")}>
                 <div className={clsx("w-[30px] h-[30px] rounded-full flex items-center justify-center text-[13px] font-semibold shrink-0", selectedStageIdx === idx ? "bg-[var(--color-mf-600)] text-white" : "bg-gray-100 text-gray-500")}>{idx + 1}</div>
                 <div className="flex-1 min-w-0"><span className="text-[15px] font-medium text-[var(--color-text-primary)] truncate block">{stage.name || "Untitled Stage"}</span><span className="text-[13px] text-[var(--color-text-muted)]">{stage.steps.length} step{stage.steps.length !== 1 ? "s" : ""}{stage.defaultDurationDays ? ` · ${stage.defaultDurationDays} days` : ""}</span></div>

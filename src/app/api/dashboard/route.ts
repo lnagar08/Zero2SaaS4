@@ -5,7 +5,7 @@ import type { DashboardSummary } from "@/types";
 
 export async function GET() {
   try {
-    const matters = getMattersWithHealth();
+    const matters = await getMattersWithHealth();
 
     const summary: DashboardSummary = {
       totalActive: matters.length,

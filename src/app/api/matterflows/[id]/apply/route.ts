@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const count = getActiveMattersCountForFlow(id);
+    const count = await getActiveMattersCountForFlow(id);
     return NextResponse.json({ count });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to count" }, { status: 400 });
@@ -23,7 +23,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const updatedCount = applyMatterFlowToExistingMatters(id);
+    const updatedCount = await applyMatterFlowToExistingMatters(id);
     return NextResponse.json({ updatedCount });
   } catch (error: any) {
     console.error("Apply MatterFlow error:", error);

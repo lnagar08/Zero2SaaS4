@@ -18,7 +18,7 @@ import { getFirmBranding, updateFirmBranding } from "@/lib/data";
 
 export async function GET() {
   try {
-    const branding = getFirmBranding();
+    const branding = await getFirmBranding();
     return NextResponse.json(branding);
   } catch (error) {
     return NextResponse.json({ error: "Failed to load branding" }, { status: 500 });
@@ -28,7 +28,7 @@ export async function GET() {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const updated = updateFirmBranding(undefined, body);
+    const updated = await updateFirmBranding(body);
     return NextResponse.json(updated);
   } catch (error) {
     return NextResponse.json({ error: "Failed to update branding" }, { status: 500 });

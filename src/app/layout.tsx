@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import "./globals.css";
-
+import "@/app/globals.css"
+import { Sidebar } from "@/components/layout/Sidebar";
+import { FirmBanner } from "@/components/layout/FirmBanner";
 export const metadata: Metadata = {
   title: "MatterGuardian — Guard every matter. Keep them in flow.",
   description: "Workflow management for flat-fee transaction law firms",
@@ -22,7 +23,13 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen">
-        {children}
+        <Sidebar />
+        <main className="ml-[240px] min-h-screen">
+          <FirmBanner />
+          <div className="px-8 py-6">
+            {children}
+          </div>
+        </main>
       </body>
     </html>
   );
