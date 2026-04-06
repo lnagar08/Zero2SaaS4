@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── MasterSaaS Core Tables ──
+model Organization {
+  id                  String                @id @default(uuid())
+  name                String
+  slug                String                @unique
+  stripeCustomerId    String?               @unique
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  users               User[]
+  invitations         Invitation[]
+  subscription        Subscription?
+  // Product model relations are auto-added by Prisma when orgId fields reference Organization
+  MatterFlow          MatterFlow[]
+  FlowStage           FlowStage[]
+  FlowStep            FlowStep[]
+  Matter              Matter[]
+  MatterStageProgress MatterStageProgress[]
+  MatterStepProgress  MatterStepProgress[]
+  FlowControl         FlowControl[]
+}
+
+model User {
+  id            String       @id @default(uuid())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  email         String       @unique
+  name          String
+  passwordHash  String?
+  role          Role         @default(MEMBER)
+  emailVerified DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+
+  @@index([orgId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  orgId                String             @unique
+  org                  Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  stripeSubscriptionId String             @unique
+  stripePriceId        String
+  status               SubscriptionStatus
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean            @default(false)
+  trialEnd             DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
+model Invitation {
+  id        String       @id @default(uuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  email     String
+  role      Role         @default(MEMBER)
+  token     String       @unique @default(uuid())
+  expiresAt DateTime
+  createdAt DateTime     @default(now())
+
+  @@index([orgId])
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires      DateTime
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ══════════════════════════════════════════
+// YOUR PRODUCT TABLES
+// Extracted from SQLite schema and converted to Prisma.
+// orgId added to every table for multi-tenancy.
+// ══════════════════════════════════════════
+model MatterFlow {
+  id          String       @id @default(uuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id])
+  name        String
+  description String?
+  isDefault   Int          @default(0)
+  isPublic    Int          @default(0)
+  publishedAt String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now())
+
+  @@index([orgId])
+}
+
+model FlowStage {
+  id                  String       @id @default(uuid())
+  matterFlowId        String
+  name                String
+  sortOrder           Int          @default(0)
+  defaultDurationDays Int?
+  createdAt           DateTime     @default(now())
+  orgId               String
+  org                 Organization @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+}
+
+model FlowStep {
+  id            String       @id @default(uuid())
+  stageId       String
+  name          String
+  description   String?
+  sortOrder     Int          @default(0)
+  dueDaysOffset Int?
+  isRequired    Int          @default(1)
+  createdAt     DateTime     @default(now())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+}
+
+model Matter {
+  id              String       @id @default(uuid())
+  orgId           String
+  org             Organization @relation(fields: [orgId], references: [id])
+  matterFlowId    String
+  referenceNumber String?
+  name            String
+  clientName      String
+  clientCompany   String?
+  clientEmail     String?
+  description     String?
+  status          String       @default("active")
+  assignedUserId  String?
+  currentStageId  String?
+  startDate       String
+  targetEndDate   String?
+  completedDate   String?
+  amountPaid      Float        @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @default(now())
+
+  @@index([orgId])
+}
+
+model MatterStageProgress {
+  id          String       @id @default(uuid())
+  matterId    String
+  stageId     String
+  stageName   String
+  sortOrder   Int          @default(0)
+  startedAt   String?
+  completedAt String?
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+}
+
+model MatterStepProgress {
+  id                    String       @id @default(uuid())
+  matterStageProgressId String
+  stepId                String
+  stepName              String
+  sortOrder             Int          @default(0)
+  isRequired            Int          @default(1)
+  isCompleted           Int          @default(0)
+  completedAt           String?
+  dueDate               String?
+  manualDueDate         String?
+  notes                 String?
+  withClient            Int          @default(0)
+  orgId                 String
+  org                   Organization @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+}
+
+model FlowControl {
+  id                       String       @id @default(uuid())
+  orgId                    String
+  org                      Organization @relation(fields: [orgId], references: [id])
+  dueSoonWindowDays        Int          @default(2)
+  stageRiskThresholdDays   Int          @default(14)
+  graceWindowDays          Int          @default(2)
+  breakdownOnPastDue       Int          @default(1)
+  breakdownOnInactivity    Int          @default(1)
+  breakdownInactivityDays  Int          @default(14)
+  breakdownOnStepOverdue   Int          @default(1)
+  breakdownStepOverdueDays Int          @default(21)
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @default(now())
+
+  @@index([orgId])
+}
