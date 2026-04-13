@@ -1,6 +1,8 @@
 // TODO: Add tenant scoping — const { orgId } = await getCurrentOrg();
 import { NextRequest, NextResponse } from "next/server";
 import { getMatterFlow, saveMatterFlow, deleteMatterFlow, reassignMattersFromFlow } from "@/lib/data";
+ import { getCurrentOrg } from "@/lib/tenant";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(
   _request: NextRequest,
@@ -8,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const flow = getMatterFlow(id);
+    const flow = await getMatterFlow(id);
     if (!flow) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(flow);
   } catch (error) {
@@ -21,9 +23,17 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { orgId } = await getCurrentOrg();
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
+
     const { id } = await params;
     const body = await request.json();
-    const flow = saveMatterFlow({ ...body, id });
+    const flow = await saveMatterFlow({ ...body, id });
     return NextResponse.json(flow);
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to save" }, { status: 400 });
@@ -43,6 +53,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { orgId } = await getCurrentOrg();
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
+
     const { id } = await params;
     const url = new URL(request.url);
     const reassignTo = url.searchParams.get("reassignTo");
@@ -50,12 +68,12 @@ export async function DELETE(
 
     // Reassign matters before deleting the template
     if (reassignTo) {
-      reassignMattersFromFlow(id, reassignTo);
+      await reassignMattersFromFlow(id, reassignTo);
     } else if (orphan) {
-      reassignMattersFromFlow(id, null);
+      await reassignMattersFromFlow(id, null);
     }
 
-    deleteMatterFlow(id);
+    await deleteMatterFlow(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: "Failed to delete" }, { status: 500 });

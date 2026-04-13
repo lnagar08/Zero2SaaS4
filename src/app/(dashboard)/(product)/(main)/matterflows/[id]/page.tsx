@@ -27,6 +27,7 @@ import {
 import { clsx } from "clsx";
 import type { MatterFlow, FlowStage, FlowStep } from "@/types";
 import { v4 as uuid } from "uuid";
+import { toast } from "sonner";
 
 function newStage(order: number): FlowStage {
   return { id: uuid(), matterFlowId: "", name: "New Stage", order, defaultDurationDays: 7, steps: [], createdAt: "" };
@@ -73,9 +74,19 @@ export default function MatterFlowEditorPage() {
       // Fetch affected matters count before showing dialog
       try {
         const res = await fetch(`/api/matterflows/${flowId}/apply`);
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          toast.error(errorData.error || "Save failed");
+          return;
+        }
+
         const data = await res.json();
         setAffectedMattersCount(data.count || 0);
-      } catch { setAffectedMattersCount(0); }
+      } catch(err) { 
+        toast.error(err instanceof Error ? err.message : "Save failed");
+        setAffectedMattersCount(0); 
+      }
       setShowSaveDialog(true);
     }
   };
@@ -89,11 +100,20 @@ export default function MatterFlowEditorPage() {
       const method = isNew ? "POST" : "PUT";
       const url = isNew ? "/api/matterflows" : `/api/matterflows/${flowId}`;
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(flow) });
+       
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
       const result = await res.json();
       setSaved(true); setTimeout(() => setSaved(false), 2000);
       if (isNew && result.id) router.push(`/matterflows/${result.id}`);
       else setFlow(result);
-    } catch (err) { console.error("Save failed:", err); }
+    } catch (err) { 
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Save failed:", err); 
+    }
     finally { setSaving(false); }
   };
 
@@ -107,12 +127,22 @@ export default function MatterFlowEditorPage() {
       const res = await fetch(`/api/matterflows/${flowId}`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(flow),
       });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
+
       const result = await res.json();
       setFlow(result);
       // Then apply to existing matters
       await fetch(`/api/matterflows/${flowId}/apply`, { method: "POST" });
       setSaved(true); setTimeout(() => setSaved(false), 2000);
-    } catch (err) { console.error("Save + apply failed:", err); }
+    } catch (err) { 
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Save + apply failed:", err); 
+    }
     finally { setSaving(false); }
   };
 
@@ -126,10 +156,20 @@ export default function MatterFlowEditorPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...flow, id: undefined, isDefault: false }),
       });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
+
       const result = await res.json();
       setSaved(true); setTimeout(() => setSaved(false), 2000);
       if (result.id) router.push(`/matterflows/${result.id}`);
-    } catch (err) { console.error("Save as new failed:", err); }
+    } catch (err) { 
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Save as new failed:", err); 
+    }
     finally { setSaving(false); }
   };
 
@@ -182,8 +222,17 @@ export default function MatterFlowEditorPage() {
                 setPublishing(true);
                 try {
                   const res = await fetch(`/api/matterflows/${flowId}/publish`, { method: "POST" });
+                  if (!res.ok) {
+                      const errorData = await res.json();
+                      toast.error(errorData.error || "Save failed");
+                      return;
+                    }
+
                   const data = await res.json();
                   setFlow({ ...flow, isPublic: data.isPublic });
+                }catch (err) { 
+                  toast.error(err instanceof Error ? err.message : "Save failed");
+                  console.error("Save as new failed:", err); 
                 } finally { setPublishing(false); }
               }}
               disabled={publishing}

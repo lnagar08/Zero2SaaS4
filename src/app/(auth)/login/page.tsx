@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
+import { redirect } from "next/navigation";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -8,7 +9,20 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const res = await signIn("credentials", { email, password, redirect: false });
-    if (res?.error) setError("Invalid credentials"); else window.location.href = "/";
+    
+    if (res?.error){
+      setError("Invalid credentials");
+    } else {
+      const session = await getSession();
+      if (!session) {
+        redirect("/login");
+      }
+      if (session.user.role === "ADMIN") {
+        redirect("/admin");
+      } else {
+        redirect("/dashboard");
+      }
+    }
   };
   return (
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f8fafc"}}>

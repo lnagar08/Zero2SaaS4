@@ -117,17 +117,20 @@ export default function PortalPage() {
       baseDate = addDays(new Date(), remaining * 2); // rough estimate: 2 days per remaining step
     }
     let dayOffset = 0;
-    for (let i = currentStageIdx + 1; i < stageIdx; i++) {
-      dayOffset += matter.stageProgress[i].steps.length * 2;
+    if (matter?.stageProgress) {
+      for (let i = currentStageIdx + 1; i < stageIdx; i++) {
+        dayOffset += matter.stageProgress[i].steps.length * 2;
+      }
     }
-    const stageSteps = matter.stageProgress[stageIdx]?.steps.length || 3;
+    
+    const stageSteps = matter?.stageProgress[stageIdx]?.steps.length || 3;
     const start = addDays(baseDate, dayOffset);
     const end = addDays(start, stageSteps * 2);
     return { start: format(start, "MMM d"), end: format(end, "MMM d") };
   }
 
   function estimateStepDate(stageIdx: number, stepIdx: number): string {
-    const step = matter.stageProgress[stageIdx]?.steps[stepIdx];
+    const step = matter?.stageProgress[stageIdx]?.steps[stepIdx];
     const due = step?.manualDueDate || step?.dueDate;
     if (due) {
       const d = parseISO(due);
@@ -135,7 +138,7 @@ export default function PortalPage() {
     }
     // Estimate
     const dates = estimateStageDates(stageIdx);
-    const stageSteps = matter.stageProgress[stageIdx]?.steps.length || 1;
+    const stageSteps = matter?.stageProgress[stageIdx]?.steps.length || 1;
     const startDate = parseISO(dates.start + ", 2026") || new Date();
     return format(addDays(new Date(), stepIdx * 2 + (stageIdx - currentStageIdx) * 5), "MMM d");
   }
@@ -163,7 +166,7 @@ export default function PortalPage() {
         </span>
       </div>
 
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px 60px" }}>
+      <div style={{ margin: "0 auto", padding: "24px 20px 60px" }}>
 
         {/* MatterGuardian subtle branding */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>

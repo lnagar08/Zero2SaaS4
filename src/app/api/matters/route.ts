@@ -1,6 +1,8 @@
 // TODO: Add tenant scoping — const { orgId } = await getCurrentOrg();
 import { NextRequest, NextResponse } from "next/server";
 import { getMatters, createMatter } from "@/lib/data";
+import { prisma } from "@/lib/prisma";
+import { getCurrentOrg } from "@/lib/tenant";
 
 export async function GET() {
   try {
@@ -14,6 +16,14 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const { orgId } = await getCurrentOrg();
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
+    
     const body = await request.json();
     const matter = await createMatter(body);
     return NextResponse.json(matter, { status: 201 });

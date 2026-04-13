@@ -75,7 +75,7 @@ export interface Matter {
   referenceNumber?: string;
   name: string;
   clientName: string;
-  clientCompany?: string;
+  clientCompany?: string; 
   clientEmail?: string;
   description?: string;
   status: MatterStatus;
@@ -168,6 +168,8 @@ export interface FlowControls {
   /** Grace period days after stage start before tracking begins */
   graceWindowDays: number;
   /** Flow Breakdown conditions — at least one must be enabled */
+  outOfFlowThresholdDays: number;
+  flowBreakdownThresholdDays: number;
   breakdownOnPastDue: boolean;
   breakdownOnInactivity: boolean;
   breakdownInactivityDays: number;

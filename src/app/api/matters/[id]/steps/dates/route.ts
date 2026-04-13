@@ -9,6 +9,14 @@ export async function PATCH(
   try {
     const { id: matterId } = await params; // Matter ID
     const { orgId } = await getCurrentOrg(); // Tenant Check
+    
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
+
     const { stepProgressId, manualDueDate, completedAt } = await request.json();
 
     

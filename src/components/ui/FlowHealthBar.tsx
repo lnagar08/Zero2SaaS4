@@ -55,23 +55,18 @@ export function FlowHealthBar({ health, showLabel = false, height = "sm" }: Flow
                   isFuture && "w-0"
                 )}
                 style={
-                  isCurrent
-                    ? {
-                        width: `${Math.max(
-                          10,
-                          health.totalSteps > 0
-                            ? ((health.completedSteps -
-                                Array.from({ length: health.currentStageIndex ?? 0 }).reduce(
-                                  () => 0,
-                                  0
-                                )) /
-                                Math.max(1, health.totalSteps / totalStages)) *
-                              100
-                            : 0
-                        )}%`,
-                      }
-                    : undefined
-                }
+                    isCurrent
+                      ? {
+                          width: `${Math.max(
+                            10,
+                            health.totalSteps > 0
+                              ? (health.completedSteps / health.totalSteps) * 100
+                              : 0
+                          )}%`,
+                        }
+                      : undefined
+                  }
+
               />
             </div>
           );

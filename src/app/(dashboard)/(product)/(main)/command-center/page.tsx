@@ -13,11 +13,12 @@ import { getCurrentOrg } from "@/lib/tenant";
  * - All data is computed from real matter records via the API.
  */
 "use client";
-
+import { useSession } from "next-auth/react"
 import { useEffect, useState } from "react";
 import { PageLoader } from "@/components/ui/Spinner";
 import { BarChart3, TrendingDown, Zap, CheckCircle2, AlertTriangle, Clock, Users } from "lucide-react";
 import { clsx } from "clsx";
+import { redirect } from "next/navigation";
 
 interface CommandCenterData {
   avgDaysToClose: number;
@@ -29,6 +30,11 @@ interface CommandCenterData {
   associates: { id: string; name: string; initials: string; active: number; avgDays: number; flowRate: number; closed: number }[];
   agingMatters: { id: string; name: string; clientName: string; assignedUserName: string; totalDays: number; daysSinceActivity: number; status: string }[];
   flows: { id: string; name: string }[];
+  totalActiveValue: number;
+  valueAtRisk: number;
+  valueDelivered30d: number;
+  avgMatterValue: number;
+  revenueByAssociate:[]
 }
 
 const PERIODS = [
@@ -51,19 +57,71 @@ export default function CommandCenterPage() {
   const [loading, setLoading] = useState(true);
   const [flowFilter, setFlowFilter] = useState("");
   const [period, setPeriod] = useState(90);
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: session, status } = useSession();
+  if(session?.user.role !== 'OWNER'){
+    redirect('/dashboard');
+  }
 
   useEffect(() => {
-    setLoading(true);
-    fetch(`/api/command-center?flowId=${flowFilter}&period=${period}`)
-      .then((r) => r.json())
-      .then((d) => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [flowFilter, period]);
+  let isMounted = true;
+  setLoading(true);
+  setError(null);
 
+  fetch(`/api/command-center?flowId=${flowFilter}&period=${period}`)
+    .then((res) => {
+      if (!res.ok) throw new Error(`${res.status}`); // Pass status code as error message
+      return res.json();
+    })
+    .then((d) => {
+      if (isMounted) {
+        setData(d);
+        setLoading(false);
+      }
+    })
+    .catch((err: Error) => {
+      if (isMounted) {
+        // Now TypeScript will allow setting these strings
+        const friendlyMessage = err.message.includes("403") 
+          ? "Access Denied" 
+          : "Something went wrong. Please try again.";
+
+        setError(friendlyMessage);
+        setLoading(false);
+      }
+    });
+
+  return () => { isMounted = false; };
+}, [flowFilter, period]);
+
+  if (error) {
+  return (
+    <div className="flex flex-col items-center justify-center p-8 text-center bg-white border border-gray-200 rounded-xl shadow-sm">
+      <div className="p-3 bg-red-100 rounded-full">
+        <span className="text-2xl">🚫</span>
+      </div>
+      <h3 className="mt-4 text-lg font-semibold text-gray-900">Permission Error</h3>
+      <p className="mt-2 text-sm text-gray-500 max-w-xs">
+        {error === "Error: 403 Forbidden" 
+          ? "Your current role (OWNER) does not have access to this module." 
+          : error}
+      </p>
+      <button 
+        onClick={() => window.location.reload()} 
+        className="mt-6 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition"
+      >
+        Try Again
+      </button>
+    </div>
+  );
+}
+
+  
   if (loading || !data) return <PageLoader />;
 
   const maxStageDays = Math.max(...data.stagePerformance.map((s) => s.avgDays), 1);
-
+  
   return (
     <div>
       {/* Header */}

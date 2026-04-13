@@ -21,10 +21,15 @@ import { getMattersWithHealth, getMatterFlows, getUsers } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
+
   try {
     // 1. Await the async context
-    const { orgId } = await getCurrentOrg(); 
+    const { orgId, userRole } = await getCurrentOrg(); 
 
+    if (userRole !== "OWNER") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    
     // 2. Await all data fetching
     const [matters, flows, users] = await Promise.all([
       await getMattersWithHealth(),
@@ -190,7 +195,7 @@ export async function GET(request: NextRequest) {
       stagePerformance: stagePerf || [],
       associates: assocStats,
       agingMatters: aging,
-      flows: (flows || []).map((f) => ({ id: f.id, name: f.name })),
+      flows: (flows || []).map((f) => ({ id: f.id, name: f.name }))
     });
   } catch (error) {
     console.error("Command Center API error:", error);

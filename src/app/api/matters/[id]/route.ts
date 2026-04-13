@@ -1,6 +1,8 @@
 // TODO: Add tenant scoping — const { orgId } = await getCurrentOrg();
 import { NextRequest, NextResponse } from "next/server";
 import { getMatter, updateMatter, deleteMatter } from "@/lib/data";
+import { prisma } from "@/lib/prisma";
+import { getCurrentOrg } from "@/lib/tenant";
 
 export async function GET(
   _request: NextRequest,
@@ -24,6 +26,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { orgId } = await getCurrentOrg();
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
+
     const { id } = await params;
     const body = await request.json();
     const matter = await updateMatter(id, body);
@@ -39,6 +49,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { orgId } = await getCurrentOrg();
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
+    
     const { id } = await params;
     await deleteMatter(id);
     return NextResponse.json({ success: true });

@@ -14,7 +14,7 @@ providers.push(CredentialsProvider({
     const user = await prisma.user.findUnique({ where: { email: credentials.email } });
     if (!user || !user.passwordHash) return null;
     const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-    return valid ? { id: user.id, email: user.email, name: user.name } : null;
+    return valid ? { id: user.id, email: user.email, name: user.name, role: user.role, orgId: user.orgId } : null;
   },
 }));
 if (process.env.GOOGLE_CLIENT_ID) {
@@ -27,7 +27,20 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   callbacks: {
-    async jwt({ token, user }) { if (user) token.userId = user.id; return token; },
-    async session({ session, token }) { if (session.user) (session.user as any).id = token.userId; return session; },
+    async jwt({ token, user }) { 
+      if (user){
+          token.userId = user.id; 
+          token.role = user.role;
+          token.orgId = user.orgId; 
+      } 
+      return token; 
+    },
+    async session({ session, token }) { 
+      if (session.user) {
+        (session.user as any).id = token.userId;
+        session.user.role = token.role as string;
+        session.user.orgId = token.orgId as string;
+      }
+      return session; },
   },
 };

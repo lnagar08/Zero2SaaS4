@@ -59,6 +59,7 @@ import type {
 } from "@/types";
 import { FLOW_STATUS_LABELS } from "@/types";
 import { differenceInCalendarDays, parseISO, isValid, format } from "date-fns";
+import { toast } from "sonner";
 
 // ============================================================
 // Filter / sort types
@@ -91,7 +92,7 @@ export default function HomePage() {
   const [assigneeFilter, setAssigneeFilter] = useState("");
   const [sortField, setSortFieldState] = useState<SortField>("status");
   const [sortDir, setSortDirState] = useState<SortDir>("desc");
-
+  
   // Load persisted sort on mount
   useEffect(() => {
     try {
@@ -798,7 +799,7 @@ function CreateMatterDialog({
       dueDateWarning = `This due date is ${deficit} day${deficit !== 1 ? "s" : ""} before the workflow would normally complete (${totalFlowDays} days). Steps may need to be completed faster than their default durations.`;
     }
   }
-
+ 
   const handleSubmit = async () => {
     if (!form.name || !form.clientName || !form.matterFlowId) return;
     setSaving(true);
@@ -811,9 +812,18 @@ function CreateMatterDialog({
           amountPaid: form.amountPaid ? parseFloat(form.amountPaid) : 0,
         }),
       });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
+
       const created = await res.json();
       onCreated(created?.id);
-    } catch (err) { console.error("Failed to create matter:", err); }
+    } catch (err) { 
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Failed to create matter:", err); 
+    }
     finally { setSaving(false); }
   };
 
@@ -1020,7 +1030,7 @@ function ImportCSVDialog({ flows, users, onClose, onImported }: {
     for (const row of parsedRows) {
       if (row.errors.length > 0 || !row.matchedFlowId) { errs++; continue; }
       try {
-        await fetch("/api/matters", {
+        const res = await fetch("/api/matters", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: row.mapped.name, clientName: row.mapped.clientName,
@@ -1030,8 +1040,16 @@ function ImportCSVDialog({ flows, users, onClose, onImported }: {
             startDate: row.mapped.startDate || undefined,
           }),
         });
+        if (!res.ok) {
+          const errorData = await res.json();
+          toast.error(errorData.error || "Save failed");
+          return;
+        }
         imported++;
-      } catch { errs++; }
+      } catch(err) { 
+        toast.error(err instanceof Error ? err.message : "Save failed");
+        errs++; 
+      }
     }
     setImportedCount(imported);
     setImportErrors(errs);

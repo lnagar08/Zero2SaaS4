@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Settings, Workflow, BarChart3, ExternalLink } from "lucide-react";
+import { LayoutDashboard, Settings, Workflow, BarChart3, ExternalLink, DollarSign } from "lucide-react";
 import { clsx } from "clsx";
+import { useSession } from "next-auth/react";
 
 // SaaS NOTE: In production, filter NAV_ITEMS by user role.
 // Command Center should only show for users with role === "OWNER".
@@ -19,7 +20,14 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
-
+  const { data: session, status } = useSession();
+  const userRole = session?.user?.role;
+  const filteredNavItems = NAV_ITEMS.filter((item) => {
+    if (item.ownerOnly) {
+      return userRole === "OWNER";
+    }
+    return true;
+  });
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[240px] flex flex-col z-30"
       style={{ background: "#1E2028" }}>
@@ -41,7 +49,7 @@ export function Sidebar() {
       <nav className="flex-1 px-3 pt-2">
         <p className="px-3 mb-3 text-[10px] font-semibold uppercase tracking-[1px]"
           style={{ color: "rgba(255,255,255,0.35)" }}>Workspace</p>
-        {NAV_ITEMS.map((item) => {
+        {filteredNavItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link key={item.href} href={item.href}

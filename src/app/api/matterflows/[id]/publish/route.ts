@@ -9,6 +9,13 @@ export async function POST(
   try {
     const { id } = await params;
     const { orgId } = await getCurrentOrg(); // Tenant Check
+    
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
 
     const flow = await prisma.matterFlow.findFirst({
       where: { id, orgId },

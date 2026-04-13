@@ -11,6 +11,13 @@ export async function POST(
     const { id: matterId } = await params;
     const { stepProgressId } = await request.json();
     const { orgId } = await getCurrentOrg();
+    
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
 
     const row = await prisma.matterStepProgress.findUnique({
       where: { id: stepProgressId, orgId },

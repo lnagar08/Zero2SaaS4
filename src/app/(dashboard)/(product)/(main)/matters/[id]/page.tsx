@@ -36,6 +36,7 @@ import type {
 import { computeFlowHealth } from "@/lib/flow-engine";
 import { FLOW_STATUS_LABELS } from "@/types";
 import { differenceInCalendarDays, parseISO, format, isValid } from "date-fns";
+import { toast } from "sonner";
 
 export default function MatterDetailPage() {
   const params = useParams();
@@ -78,42 +79,93 @@ export default function MatterDetailPage() {
   // ── Actions ──
 
   const toggleStep = async (stepProgressId: string) => {
-    await fetch(`/api/matters/${matterId}/steps`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stepProgressId }),
-    });
-    fetchMatter();
+    try {
+      const res = await fetch(`/api/matters/${matterId}/steps`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stepProgressId }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
+      fetchMatter();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Failed:", err);
+    }
+    
   };
 
   const toggleWithClient = async (stepProgressId: string) => {
-    await fetch(`/api/matters/${matterId}/steps/with-client`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stepProgressId }),
-    });
-    fetchMatter();
+    try {
+      const res = await fetch(`/api/matters/${matterId}/steps/with-client`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stepProgressId }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
+      fetchMatter();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Failed:", err);
+    }
   };
 
   const handleAdvanceStage = async () => {
     if (!confirm("Advance to the next Flow Stage? The current stage will be marked complete.")) return;
     setAdvancing(true);
-    try { await fetch(`/api/matters/${matterId}/advance`, { method: "POST" }); fetchMatter(); }
+    try { 
+      const res = await fetch(`/api/matters/${matterId}/advance`, { method: "POST" }); fetchMatter(); 
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
+    }catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Failed:", err);
+    }
     finally { setAdvancing(false); }
   };
 
   /** Close/archive the matter — sets status to "completed" */
   const handleCloseMatter = async () => {
     if (!confirm("Close this matter? It will be marked as completed and removed from the active list.")) return;
-    await fetch(`/api/matters/${matterId}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "completed" }),
-    });
-    router.push("/dashboard");
+    try {
+      const res = await fetch(`/api/matters/${matterId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
+      router.push("/dashboard");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Failed:", err);
+    }
   };
 
   const handleDelete = async () => {
     if (!confirm("Delete this matter permanently? This cannot be undone.")) return;
-    await fetch(`/api/matters/${matterId}`, { method: "DELETE" });
-    router.push("/dashboard");
+    try {
+      const res = await fetch(`/api/matters/${matterId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
+      router.push("/dashboard");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Failed:", err);
+    }
   };
 
   /** Switch to a different MatterFlow template (destructive — resets progress) */
@@ -121,19 +173,29 @@ export default function MatterDetailPage() {
     if (!matter || newFlowId === matter.matterFlowId) return;
     const flow = matterFlows.find((f) => f.id === newFlowId);
     if (!flow || !confirm(`Switch to "${flow.name}"? This resets all stage and step progress.`)) return;
-    await fetch(`/api/matters/${matterId}`, { method: "DELETE" });
-    const res = await fetch("/api/matters", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: matter.name, clientName: matter.clientName,
-        clientCompany: matter.clientCompany || "", clientEmail: matter.clientEmail || "",
-        description: matter.description || "", matterFlowId: newFlowId,
-        assignedUserId: matter.assignedUserId || "", referenceNumber: matter.referenceNumber || "",
-        startDate: matter.startDate,
-      }),
-    });
-    const newMatter = await res.json();
-    router.push(`/matters/${newMatter.id}`);
+    try {
+      const resD = await fetch(`/api/matters/${matterId}`, { method: "DELETE" });
+      if (!resD.ok) {
+        const errorData = await resD.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
+      const res = await fetch("/api/matters", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: matter.name, clientName: matter.clientName,
+          clientCompany: matter.clientCompany || "", clientEmail: matter.clientEmail || "",
+          description: matter.description || "", matterFlowId: newFlowId,
+          assignedUserId: matter.assignedUserId || "", referenceNumber: matter.referenceNumber || "",
+          startDate: matter.startDate,
+        }),
+      });
+      const newMatter = await res.json();
+      router.push(`/matters/${newMatter.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Failed:", err);
+    }
   };
 
   if (loading) return <PageLoader />;
@@ -352,7 +414,7 @@ function EditMatterDialog({ matter, users, onClose, onSaved }: {
     if (!form.name || !form.clientName) return;
     setSaving(true);
     try {
-      await fetch(`/api/matters/${matter.id}`, {
+      const res = await fetch(`/api/matters/${matter.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -360,8 +422,16 @@ function EditMatterDialog({ matter, users, onClose, onSaved }: {
           amountPaid: form.amountPaid ? parseFloat(form.amountPaid) : 0,
         }),
       });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
       onSaved();
-    } catch (err) { console.error("Save failed:", err); }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Failed:", err);
+    }
     finally { setSaving(false); }
   };
 
@@ -552,11 +622,21 @@ function StepRow({ step, isFutureStage, onToggle, onToggleWithClient, matterId, 
   const [editingDue, setEditingDue] = useState(false);
   const [editingCompleted, setEditingCompleted] = useState(false);
   const updateDate = async (field: "manualDueDate" | "completedAt", value: string) => {
-    await fetch(`/api/matters/${matterId}/steps/dates`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stepProgressId: step.id, [field]: value || null }),
-    });
-    setEditingDue(false); setEditingCompleted(false); onRefresh();
+    try {
+      const res = await fetch(`/api/matters/${matterId}/steps/dates`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stepProgressId: step.id, [field]: value || null }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
+      setEditingDue(false); setEditingCompleted(false); onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Failed", err);
+    }
   };
   const dueDate = step.manualDueDate || step.dueDate;
   let dueStatus: "ok" | "soon" | "overdue" | "none" = "none";

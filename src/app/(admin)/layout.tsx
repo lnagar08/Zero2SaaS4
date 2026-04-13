@@ -1,5 +1,8 @@
 import { requireSuperAdmin } from "@/lib/require-superadmin";
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+import { Toaster } from "sonner";
+export default async function AdminLayout(
+  { children }: 
+  { children: React.ReactNode }) {
   await requireSuperAdmin();
   return (
     <div style={{minHeight:"100vh",background:"#f8fafc"}}>
@@ -9,10 +12,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <a href="/admin" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>Dashboard</a>
           <a href="/admin/customers" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>Customers</a>
           <a href="/admin/revenue" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>Revenue</a>
+          <a href="/admin/plans" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>Plans</a>
         </div>
         <a href="/" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>← Back to App</a>
       </nav>
-      <div style={{maxWidth:1200,margin:"0 auto",padding:"32px 24px"}}>{children}</div>
+      <div style={{maxWidth:1200,margin:"0 auto",padding:"32px 24px"}}>
+        <Toaster position="top-right" richColors />
+        {children}
+      </div>
     </div>
   );
 }

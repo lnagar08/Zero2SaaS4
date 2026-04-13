@@ -1,6 +1,8 @@
 // TODO: Add tenant scoping — const { orgId } = await getCurrentOrg();
 import { NextRequest, NextResponse } from "next/server";
 import { duplicateMatterFlow } from "@/lib/data";
+import { getCurrentOrg } from "@/lib/tenant";
+import { prisma } from "@/lib/prisma";
 
 /** POST /api/matterflows/[id]/duplicate — Create an exact copy of a MatterFlow template */
 export async function POST(
@@ -8,6 +10,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { orgId } = await getCurrentOrg(); // Tenant Check
+        
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
+
     const { id } = await params;
     const flow = await duplicateMatterFlow(id);
     return NextResponse.json(flow, { status: 201 });

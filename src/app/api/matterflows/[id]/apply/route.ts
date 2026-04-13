@@ -1,7 +1,8 @@
 // TODO: Add tenant scoping — const { orgId } = await getCurrentOrg();
 import { NextRequest, NextResponse } from "next/server";
 import { applyMatterFlowToExistingMatters, getActiveMattersCountForFlow } from "@/lib/data";
-
+import { getCurrentOrg } from "@/lib/tenant";
+import { prisma } from "@/lib/prisma";
 /** GET /api/matterflows/[id]/apply — Get count of matters that would be affected */
 export async function GET(
   _request: NextRequest,
@@ -22,6 +23,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { orgId } = await getCurrentOrg(); // Tenant Check
+        
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
+    
     const { id } = await params;
     const updatedCount = await applyMatterFlowToExistingMatters(id);
     return NextResponse.json({ updatedCount });

@@ -38,9 +38,11 @@ model User {
   name          String
   passwordHash  String?
   role          Role     @default(MEMBER)
+  parentId      String?  // For hierarchical user structures (e.g., sub-users under a main account)
   emailVerified DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  status        String   @default("active")
   accounts      Account[]
   sessions      Session[]
   @@index([orgId])
@@ -50,6 +52,20 @@ enum Role {
   OWNER 
   ADMIN
   MEMBER 
+  ATTORNEY
+  STAFF
+}
+
+model Plan {
+  id              String   @id @default(uuid())
+  name            String   // e.g., "Basic", "Pro"
+  stripeProductId String?
+  stripePriceId   String   @unique
+  priceCents      Int      // Price in cents for easy reference
+  billingInterval String @default("monthly")
+  allowMatter     Int      // Limit for "Matters"
+  allowTeamUser   Int      // Limit for Team Members
+  createdAt       DateTime @default(now())
 }
 
 model Subscription {
@@ -58,6 +74,7 @@ model Subscription {
   org                  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   stripeSubscriptionId String   @unique
   stripePriceId        String
+  stripeCustomerId     String   @unique // Essential for the Portal session
   status               SubscriptionStatus
   currentPeriodStart   DateTime
   currentPeriodEnd     DateTime
@@ -84,6 +101,7 @@ model Invitation {
   token     String   @unique @default(uuid())
   expiresAt DateTime
   createdAt DateTime @default(now())
+  status    String   @default("pending") // pending, accepted, expired
   @@index([orgId])
 }
 

@@ -14,7 +14,12 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     },
   });
 
-  if (!org) notFound();
+  const plan = await prisma.plan.findFirst({
+    where: {
+      stripePriceId: org?.subscription?.stripePriceId || undefined,
+    },
+  });
+  if (!org || !plan) notFound();
 
   return (
     <div>
@@ -28,7 +33,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           {org.subscription ? (
             <div>
               <p><strong>Status:</strong> {org.subscription.status}</p>
-              <p><strong>Plan:</strong> {org.subscription.stripePriceId}</p>
+              <p><strong>Plan:</strong> {plan.name} - ${plan.priceCents} / Month</p>
               <p><strong>Period:</strong> {org.subscription.currentPeriodStart.toLocaleDateString()} — {org.subscription.currentPeriodEnd.toLocaleDateString()}</p>
               {org.subscription.trialEnd && <p><strong>Trial ends:</strong> {org.subscription.trialEnd.toLocaleDateString()}</p>}
               {org.subscription.cancelAtPeriodEnd && <p style={{color:"#ef4444"}}><strong>Cancels at period end</strong></p>}

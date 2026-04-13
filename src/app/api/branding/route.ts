@@ -15,8 +15,12 @@ import { getCurrentOrg } from "@/lib/tenant";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getFirmBranding, updateFirmBranding } from "@/lib/data";
-
+import { prisma } from "@/lib/prisma";
+ 
 export async function GET() {
+  const { userRole } = await getCurrentOrg();
+  if (userRole !== "OWNER") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   try {
     const branding = await getFirmBranding();
     return NextResponse.json(branding);
@@ -26,7 +30,20 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
+
   try {
+    const { orgId, userRole } = await getCurrentOrg();
+    if (userRole !== "OWNER") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
+    
     const body = await request.json();
     const updated = await updateFirmBranding(body);
     return NextResponse.json(updated);

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import type { MatterFlow } from "@/types";
+import { toast } from "sonner";
 
 export default function MatterFlowsPage() {
   const router = useRouter();
@@ -65,9 +66,15 @@ export default function MatterFlowsPage() {
     setDuplicating(flowId);
     try {
       const res = await fetch(`/api/matterflows/${flowId}/duplicate`, { method: "POST" });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
       const newFlow = await res.json();
       if (newFlow.id) router.push(`/matterflows/${newFlow.id}`);
     } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
       console.error("Failed to duplicate:", err);
       setDuplicating(null);
     }
@@ -79,9 +86,17 @@ export default function MatterFlowsPage() {
     e.stopPropagation();
     try {
       const res = await fetch(`/api/matterflows/${flow.id}/apply`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
       const data = await res.json();
       setDeleteAffectedCount(data.count || 0);
-    } catch { setDeleteAffectedCount(0); }
+    } catch(err) { 
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      setDeleteAffectedCount(0); 
+    }
     setDeleteReassignTo("");
     setDeleteTarget(flow);
   };
@@ -97,10 +112,16 @@ export default function MatterFlowsPage() {
       } else {
         url += `?orphan=true`;
       }
-      await fetch(url, { method: "DELETE" });
+      const res = await fetch(url, { method: "DELETE" });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
       setDeleteTarget(null);
       fetchFlows();
     } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
       console.error("Failed to delete:", err);
     } finally {
       setDeleting(false);
@@ -112,10 +133,16 @@ export default function MatterFlowsPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await fetch(`/api/matterflows/${deleteTarget.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/matterflows/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
       setDeleteTarget(null);
       fetchFlows();
     } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
       console.error("Failed to delete:", err);
     } finally {
       setDeleting(false);

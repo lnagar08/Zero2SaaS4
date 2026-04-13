@@ -3,10 +3,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLoader } from "@/components/ui/Spinner";
-import { Save, Check, Info, Palette, SlidersHorizontal, Upload } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Save, Check, Info, Palette, SlidersHorizontal, Upload, DollarSign, User2Icon } from "lucide-react";
 import { clsx } from "clsx";
 import type { FlowControls } from "@/types";
-
+import { toast } from 'sonner';
+import { BillingTab } from "@/components/BillingTab";
+import TeamTab from "@/components/TeamTab";
 // ── Flow Controls config — simple threshold fields ──
 const CONTROL_FIELDS: {
   key: keyof FlowControls; label: string; description: string; unit: string; min: number; max: number;
@@ -19,6 +22,8 @@ const CONTROL_FIELDS: {
 const TABS = [
   { id: "branding", label: "Branding", icon: Palette },
   { id: "flow-controls", label: "Flow Controls", icon: SlidersHorizontal },
+  //{ id: "team", label: "Team", icon: User2Icon },
+  { id: "billing", label: "Billing", icon: DollarSign },
 ];
 
 export default function SettingsPage() {
@@ -34,6 +39,17 @@ export default function SettingsPage() {
   const [controls, setControls] = useState<FlowControls | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab");
+
+  useEffect(() => {
+    if (tab === "billing") {
+      const newUrl = window.location.pathname + "?tab=billing";
+      window.history.replaceState({}, "", newUrl);
+      setActiveTab('billing');
+    }
+  }, [tab]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -43,6 +59,7 @@ export default function SettingsPage() {
       ]);
       setControls(await ctrlRes.json());
       setBranding(await brandRes.json());
+    
     } catch (err) { console.error("Failed to load:", err); }
     finally { setLoading(false); }
   }, []);
@@ -58,11 +75,23 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(branding),
       });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.log(errorData);
+        toast.error(errorData.error || "Failed to save branding");
+        return;
+      }
+
       setBranding(await res.json());
       setBrandingSaved(true);
       window.dispatchEvent(new Event("branding-updated"));
       setTimeout(() => setBrandingSaved(false), 2000);
-    } catch (err) { console.error("Save failed:", err); }
+      
+    } catch (err) { 
+      toast.error(err instanceof Error ? err.message : "Failed to save branding");
+      console.error("Save failed:", err); 
+    }
     finally { setBrandingSaving(false); }
   };
 
@@ -95,12 +124,23 @@ export default function SettingsPage() {
           graceWindowDays: controls.graceWindowDays,
         }),
       });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.log(errorData);
+        toast.error(errorData.error || "Save failed");
+        return;
+      }
       setControls(await res.json());
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch (err) { console.error("Save failed:", err); }
+    } catch (err) { 
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Save failed:", err); 
+    }
     finally { setSaving(false); }
   };
+  
 
   if (loading) return <PageLoader />;
 
@@ -396,6 +436,20 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+          {/* ═══ BILLING TAB ═══ */}
+          {activeTab === "billing" && (
+           
+           <BillingTab />
+            
+          )}
+          {/* ═══ TEAM TAB ═══ */}
+          {/*activeTab === "team" && (
+           <div className="max-w-[1000px] mx-auto space-y-6">
+              <TeamTab />
+           </div>
+           
+            
+          )*/}
         </div>
       </div>
     </div>
