@@ -22,7 +22,7 @@ const CONTROL_FIELDS: {
 const TABS = [
   { id: "branding", label: "Branding", icon: Palette },
   { id: "flow-controls", label: "Flow Controls", icon: SlidersHorizontal },
-  //{ id: "team", label: "Team", icon: User2Icon },
+  { id: "team", label: "Team", icon: User2Icon },
   { id: "billing", label: "Billing", icon: DollarSign },
 ];
 
@@ -443,13 +443,13 @@ export default function SettingsPage() {
             
           )}
           {/* ═══ TEAM TAB ═══ */}
-          {/*activeTab === "team" && (
+          {activeTab === "team" && (
            <div className="max-w-[1000px] mx-auto space-y-6">
               <TeamTab />
            </div>
            
             
-          )*/}
+          )}
         </div>
       </div>
     </div>

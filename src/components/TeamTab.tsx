@@ -17,6 +17,7 @@ type Invite = {
   email: string;
   role: "ATTORNEY" | "STAFF";
   sentAt: string;
+  expiresAt: string;
   status: "pending" | "expired";
 };
 export default function TeamTab() {
@@ -25,6 +26,8 @@ export default function TeamTab() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"ATTORNEY" | "STAFF">("ATTORNEY");
   const [loading, setLoading] = useState(false);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [revokeId, setRevokeId] = useState<string | null>(null);
 
   // Fetch team members and invites on load
   useEffect(() => {
@@ -59,6 +62,61 @@ export default function TeamTab() {
     }
   };
 
+  // handle resend invite
+  const resendInvite = async (inviteId: string) => {
+    setLoadingId(inviteId);
+    try {
+      const res = await fetch(`/api/team/invite/${inviteId}`, { method: "POST" });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Failed to resend invite");
+        return;
+      }
+      toast.success("Invite resent successfully");
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred");
+    } finally {
+      setLoadingId(null); 
+    }
+  };
+
+  // handle revoke invite
+  const revokeInvite = async (inviteId: string) => {
+    
+    if (!confirm("Are you sure you want to revoke this invite? This action cannot be undone.")) return;
+
+    setRevokeId(inviteId);
+    try {
+      const res = await fetch(`/api/team/invite/${inviteId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Failed to revoke invite");
+        return;
+      }
+      setInvites(prev => prev.filter(inv => inv.id !== inviteId));
+      toast.success("Invite revoked successfully");
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred");
+    } finally {
+      setRevokeId(null); 
+    }
+  };
+
+
+  const getShortName = (name: string): string => {
+    if (!name) return "";
+    
+    const parts = name.trim().split(' ');
+    
+    if (parts.length > 1) {
+      // Take first letter of first and last name
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    } else {
+      // Take first two letters of the single name
+      return parts[0].substring(0, 2).toUpperCase();
+    }
+  };
+
     return(
         <>
         <section className="bg-white rounded-[20px] p-10 shadow-sm border border-neutral-100">
@@ -73,7 +131,7 @@ export default function TeamTab() {
             <div
               className="w-16 h-16 rounded-full bg-[#E6EAFF] text-[#4F46E5] flex items-center justify-center text-xl font-medium tracking-tight"
             >
-              EW
+              {getShortName(m.name)}
             </div>
             <div>
               <div className="text-[20px] font-medium leading-snug">{m.name}</div>
@@ -149,19 +207,26 @@ export default function TeamTab() {
             {i.role}
           </span>
           <span className="text-[16px] text-[#717A8C]">Sent {i.sentAt}</span>
+          {/*new Date(i.expiresAt) > new Date() ? (
+            <span className="text-[16px] text-[#717A8C]">Pending</span>
+          ) : (
+            <span className="text-[16px] text-[#E03131]">Expired</span>
+          )*/}
           
           <button 
             className="text-[16px] text-[#717A8C]" 
-            onClick={() => sendInvite()}
+            disabled={loadingId === i.id}
+            onClick={() => resendInvite(i.id)}
             >
-            Resend
+            {loadingId === i.id ? "Sending..." : "Resend"}
           </button>
           
-          <button className="text-[17px] text-[#E03131] font-semibold hover:text-[#C92A2A]"
-          onClick={async () => {
-              await fetch(`/api/invite/${i.id}`, { method: "DELETE" });
-              setInvites(prev => prev.filter(inv => inv.id !== i.id));
-            }}>Revoke</button>
+          <button 
+          className="text-[17px] text-[#E03131] font-semibold hover:text-[#C92A2A]"
+          disabled={revokeId === i.id}
+          onClick={() => revokeInvite(i.id)}>
+            {revokeId === i.id ? "Revoking..." : "Revoke"}
+          </button>
         </div>
         ))}
 

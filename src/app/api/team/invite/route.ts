@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/prisma";
-//import { resend } from "@/lib/resend";
 import { getServerSession } from "next-auth"; // Assuming you use NextAuth
 import { authOptions } from "@/lib/auth-options";
 import { getCurrentOrg } from "@/lib/tenant";
+import { sendMail } from '@/lib/send-mail';
 
 export async function GET() {
   const t = await getCurrentOrg();
-  const invites = await prisma.invitation.findMany({ where: { orgId: t.orgId, status: "pending" }, select: { id: true, email: true, role: true, createdAt: true } });
+  const invites = await prisma.invitation.findMany({ where: { orgId: t.orgId, status: "pending" }, select: { id: true, email: true, role: true, createdAt: true, expiresAt: true } });
   return NextResponse.json(invites.map(i => ({
     ...i,
     sentAt: i.createdAt.toLocaleDateString("en-US", {
@@ -30,6 +30,18 @@ export async function POST(req: Request) {
 
     if (!orgId) {
       return NextResponse.json({ error: "Organization ID is missing." }, { status: 400 });
+    }
+
+    const sub = await prisma.subscription.findUnique({
+      where: { orgId },
+    });
+    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
+
+    const plan = await prisma.plan.findUnique({ where: { stripePriceId: sub.stripePriceId } });
+    if (plan?.allowTeamUser && plan.allowTeamUser <= await prisma.invitation.count({ where: { orgId } })) {
+      return NextResponse.json({ error: "Team member limit reached for your subscription plan." }, { status: 403 });
     }
 
     const { email, role } = await req.json();
@@ -54,29 +66,13 @@ export async function POST(req: Request) {
     const token = nanoid(32);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // 5. Save invitation to the database
-    const invitation = await prisma.invitation.create({
-      data: {
-        email,
-        role,
-        token,
-        orgId: orgId, // Link to the owner's organization
-        expiresAt,
-        status: "pending",
-      },
-    });
-
     // 6. Construct the signup link
-    const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/signup?token=${token}`;
-
+    const inviteLink = `${process.env.NEXTAUTH_URL}/signup?token=${token}`;
+ 
     // 7. Send the email via Resend
-    /*await resend.emails.send({
-      from: "Team <onboarding@yourdomain.com>",
-      to: email,
-      subject: "You've been invited to join the team",
-      html: `
+    const mailText = `
         <div style="font-family: sans-serif; padding: 20px;">
-          <h2>Join your team</h2>
+          <h2>Join Our Team</h2>
           <p>You have been invited as an <strong>${role}</strong>.</p>
           <p>Click the button below to set up your account:</p>
           <a href="${inviteLink}" style="background: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
@@ -86,19 +82,39 @@ export async function POST(req: Request) {
             This link will expire in 24 hours.
           </p>
         </div>
-      `,
-    });*/
-
-    return NextResponse.json({ 
-      success: true, 
-      message: `Invitation sent to ${email}`,
-      invitation: {
-        ...invitation, sentAt: new Date().toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            }) 
-        } 
+      `;
+    const response = await sendMail({
+      email: email,
+      subject: "You've been invited to join the team",
+      text: mailText,
+      html: mailText,
     });
+    if (response?.messageId) {
+      const invitation = await prisma.invitation.create({
+        data: {
+          email,
+          role,
+          token,
+          orgId: orgId, // Link to the owner's organization
+          expiresAt,
+          status: "pending",
+        },
+      });
+      return NextResponse.json({ 
+        success: true, 
+        message: `Invitation sent to ${email}`,
+        invitation: {
+          ...invitation, sentAt: new Date().toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              }) 
+          } 
+      });
+    } else {
+      
+      return NextResponse.json({ error: "Failed To send application." }, { status: 400 });
+    }
+    
 
   } catch (error) {
     console.error("INVITE_ERROR:", error);
