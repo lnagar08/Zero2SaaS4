@@ -981,8 +981,8 @@ export async function getFlowControls(): Promise<FlowControls> {
     breakdownInactivityDays: row.breakdownInactivityDays ?? 14,
     breakdownOnStepOverdue: row.breakdownOnStepOverdue ?? true,
     breakdownStepOverdueDays: row.breakdownStepOverdueDays ?? 21,
-    outOfFlowThresholdDays: 0,
-    flowBreakdownThresholdDays: 0,
+    outOfFlowThresholdDays: 30,
+    flowBreakdownThresholdDays: 60,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

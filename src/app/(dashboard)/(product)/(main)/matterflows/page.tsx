@@ -357,7 +357,14 @@ export default function MatterFlowsPage() {
                           method: "POST", headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ name: lib.name, description: lib.description, isDefault: false, stages: [] }),
                         });
-                        if (res.ok) { setImportedName(lib.name); fetchFlows(); }
+                        if(!res.ok){
+                          const errorData = await res.json();
+                          toast.error(errorData.error || "Save failed");
+                          return;
+                        }
+                        if (res.ok) { 
+                          setImportedName(lib.name); fetchFlows(); 
+                        }
                       }}
                       className="text-[12px] font-semibold px-3 py-1.5 rounded-[8px] cursor-pointer transition-colors border-none hover:opacity-90"
                       style={{ background: "var(--color-mf-500)", color: "white" }}>

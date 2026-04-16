@@ -36,6 +36,8 @@ const DEFAULT_CONTROLS: FlowControls = {
   breakdownInactivityDays: 14,
   breakdownOnStepOverdue: true,
   breakdownStepOverdueDays: 21,
+  outOfFlowThresholdDays: 30,     
+  flowBreakdownThresholdDays: 60,
   createdAt: "",
   updatedAt: "",
 };

@@ -11,7 +11,11 @@ const PlanSchema = z.object({
   allowMatter: z.number().int().nonnegative("Matters cannot be negative"),
 });
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> } // Define params as a Promise
+) {
+  const { id } = await params; // Must await the params now
 
   
 
@@ -19,13 +23,16 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   if (!session?.user?.email || !isSuperAdminEmail(session.user.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const plan = await prisma.plan.findUnique({ where: { id: params.id } });
+  const plan = await prisma.plan.findUnique({ where: { id: id } });
   
   return NextResponse.json(plan);
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> } // Define params as a Promise
+) {
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email || !isSuperAdminEmail(session.user.email)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -56,7 +63,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> } // Define params as a Promise
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email || !isSuperAdminEmail(session.user.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

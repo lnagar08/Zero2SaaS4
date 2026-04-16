@@ -8,7 +8,7 @@ import { sendMail } from '@/lib/send-mail';
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // Define params as a Promise
 ) {
   try {
 
@@ -96,8 +96,8 @@ export async function POST(
   }
 }
 
-export async function DELETE (req: Request,
-  { params }: { params: { id: string } }
+export async function DELETE (request: Request,
+  { params }: { params: Promise<{ id: string }> } // Define params as a Promise
 ) {
     try {
 
