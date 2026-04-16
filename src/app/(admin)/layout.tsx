@@ -13,6 +13,7 @@ export default async function AdminLayout(
           <a href="/admin/customers" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>Customers</a>
           <a href="/admin/revenue" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>Revenue</a>
           <a href="/admin/plans" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>Plans</a>
+          <a href="/admin/transactions" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>Transactions History</a>
         </div>
         <a href="/" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>← Back to App</a>
       </nav>

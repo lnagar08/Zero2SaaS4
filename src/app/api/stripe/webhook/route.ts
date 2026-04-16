@@ -24,6 +24,19 @@ export async function POST(req: NextRequest) {
         create: { orgId, stripeSubscriptionId: sub.id, stripeCustomerId: customer.id as string, stripePriceId: sub.items.data[0].price.id, status: sub.status === "trialing" ? "TRIALING" : "ACTIVE", currentPeriodStart: new Date(sub.current_period_start*1000), currentPeriodEnd: new Date(sub.current_period_end*1000), trialEnd: sub.trial_end ? new Date(sub.trial_end*1000) : null },
         update: { stripeSubscriptionId: sub.id, stripePriceId: sub.items.data[0].price.id, status: sub.status === "trialing" ? "TRIALING" : "ACTIVE", currentPeriodStart: new Date(sub.current_period_start*1000), currentPeriodEnd: new Date(sub.current_period_end*1000), trialEnd: sub.trial_end ? new Date(sub.trial_end*1000) : null },
       }); 
+      
+      // Retrieve line items to get the price ID
+      await prisma.transaction.create({
+        data: {
+          orgId: sub.metadata.orgId,
+          amount: session.amount_total / 100,
+          currency: sub.currency,
+          status: "succeeded",
+          stripePaymentId: session.id,
+          stripePriceId: sub.items.data[0].price.id, // Store the Stripe Price ID here
+          type: "subscription_payment",
+        },
+      });
       break;
     }
     case "customer.subscription.updated": {
@@ -39,6 +52,18 @@ export async function POST(req: NextRequest) {
         currentPeriodEnd: new Date(sub.items.data[0].current_period_end*1000), 
         cancelAtPeriodEnd: sub.cancel_at_period_end || false, 
         trialEnd: sub.trial_end ? new Date(sub.trial_end*1000) : null } });
+
+      await prisma.transaction.create({
+        data: {
+          orgId: sub.metadata.orgId,
+          amount: sub.items.data[0].plan.amount / 100,
+          currency: sub.currency,
+          status: "succeeded",
+          stripePaymentId: sub.latest_invoice as string,
+          stripePriceId: sub.items.data[0].price.id, // Store the Stripe Price ID here
+          type: "plan_update",
+        },
+      });
       break;
     }
     case "customer.subscription.deleted": {

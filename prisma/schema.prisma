@@ -28,6 +28,7 @@ model Organization {
   matterStageProgress MatterStageProgress[]
   matterStepProgress  MatterStepProgress[]
   flowControls     FlowControl[]
+  transactions Transaction[]
 }
 
 model User {
@@ -66,6 +67,7 @@ model Plan {
   billingInterval String @default("monthly")
   allowMatter     Int      // Limit for "Matters"
   allowTeamUser   Int      // Limit for Team Members
+  transactions  Transaction[]
   createdAt       DateTime @default(now())
 }
 
@@ -267,4 +269,18 @@ model FlowControl {
   breakdownStepOverdueDays Int      @default(21)
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+}
+
+model Transaction {
+  id                String   @id @default(cuid())
+  orgId             String   // Which organization made the payment
+  amount            Int      // Amount in cents
+  currency          String
+  status            String   // "succeeded", "failed", etc.
+  stripePaymentId   String   @unique // Stripe Payment Intent ID
+  stripePriceId     String
+  type              String   // "subscription", "one_time", etc.
+  organization    Organization @relation(fields: [orgId], references: [id])
+  plan            Plan         @relation(fields: [stripePriceId], references: [stripePriceId])
+  createdAt         DateTime @default(now())
 }
