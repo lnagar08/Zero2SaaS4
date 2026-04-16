@@ -7,7 +7,7 @@ import { format } from "date-fns";
 
 export async function getBillingData() {
   // Replace with your actual logic to get the logged-in user's stripeCustomerId
-  const { orgId, userId } = await getCurrentOrg();
+  const { orgId } = await getCurrentOrg();
   const organization = await prisma.subscription.findUnique({
     where: { orgId: orgId }
   });
@@ -42,7 +42,13 @@ export async function getBillingData() {
    const product = await stripe.products.retrieve(sub?.items.data[0].price.product as string);
 
    const teamMembers = await prisma.user.count({
-    where: { parentId: userId, status: "active" } // Assuming parentId is null for main accounts
+    where: { 
+      orgId: orgId, 
+      role: {
+        not: "OWNER"
+      },
+      status: "active" 
+    } 
   });
 
   const maxMemebrs = await prisma.plan.findUnique({

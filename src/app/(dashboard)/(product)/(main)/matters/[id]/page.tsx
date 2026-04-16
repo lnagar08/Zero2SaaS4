@@ -22,6 +22,7 @@ import { useParams, useRouter } from "next/navigation";
 import { PageLoader } from "@/components/ui/Spinner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import Link from "next/link";
+//import { hasPermission } from "@/lib/check-permission";
 import {
   ArrowLeft, Check, Clock, AlertTriangle, Calendar, ChevronDown,
   ChevronLeft, ChevronRight, Trash2, X, CheckCircle2, FileText,
@@ -39,6 +40,7 @@ import { differenceInCalendarDays, parseISO, format, isValid } from "date-fns";
 import { toast } from "sonner";
 
 export default function MatterDetailPage() {
+  
   const params = useParams();
   const router = useRouter();
   const matterId = params.id as string;
@@ -52,10 +54,21 @@ export default function MatterDetailPage() {
   const [allMatterIds, setAllMatterIds] = useState<string[]>([]);
   const [users, setUsers] = useState<User[]>([]);
 
-  const fetchMatter = useCallback(async () => {
+  const fetchMatter = useCallback(async () => { 
     try {
+      
       const res = await fetch(`/api/matters/${matterId}`);
-      if (!res.ok) { router.push("/dashboard"); return; }
+      
+      if (!res.ok) {
+        if (res.status === 403) {
+          
+          router.push("/unauthorized");
+        } else {
+          
+          router.push("/dashboard");
+        }
+        return;
+      }
       const m: Matter = await res.json();
       setMatter(m);
       setHealth(computeFlowHealth({

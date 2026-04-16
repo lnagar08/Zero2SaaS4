@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMatters, createMatter } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrg } from "@/lib/tenant";
+import { hasPermission } from "@/lib/check-permission";
 
 export async function GET() {
   try {
@@ -16,12 +17,36 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const canAddMatter = await hasPermission("addMatter");
+    if (!canAddMatter) {
+      return NextResponse.json(
+        { error: "Unauthorized: You do not have permission to add matters." },
+        { status: 403 }
+      );
+    }
+    
     const { orgId } = await getCurrentOrg();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },
     });
     if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
       return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+    }
+
+    const totalMatter = await prisma.matter.count({
+      where:{
+        orgId
+      }
+    });
+
+    const maxMatter = await prisma.plan.findUnique({
+      where: { stripePriceId: sub.stripePriceId }
+    });
+    
+    // Check if the plan has a limit and if the user has reached it
+    if (maxMatter?.allowMatter && totalMatter >= maxMatter.allowMatter) {
+      // If the current count is equal to or more than allowed, block creation
+      return NextResponse.json({ error: "Matter limit reached for your plan." }, { status: 403 });
     }
     
     const body = await request.json();

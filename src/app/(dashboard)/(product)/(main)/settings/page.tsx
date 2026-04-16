@@ -4,12 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLoader } from "@/components/ui/Spinner";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Save, Check, Info, Palette, SlidersHorizontal, Upload, DollarSign, User2Icon } from "lucide-react";
+import { Save, Check, Info, Palette, SlidersHorizontal, Upload, DollarSign, User2Icon, User2, Users2 } from "lucide-react";
 import { clsx } from "clsx";
 import type { FlowControls } from "@/types";
 import { toast } from 'sonner';
 import { BillingTab } from "@/components/BillingTab";
 import TeamTab from "@/components/TeamTab";
+import { useSession } from "next-auth/react";
 // ── Flow Controls config — simple threshold fields ──
 const CONTROL_FIELDS: {
   key: keyof FlowControls; label: string; description: string; unit: string; min: number; max: number;
@@ -22,14 +23,22 @@ const CONTROL_FIELDS: {
 const TABS = [
   { id: "branding", label: "Branding", icon: Palette },
   { id: "flow-controls", label: "Flow Controls", icon: SlidersHorizontal },
-  { id: "team", label: "Team", icon: User2Icon },
+  { id: "team", label: "Team", icon: Users2 },
   { id: "billing", label: "Billing", icon: DollarSign },
 ];
 
 export default function SettingsPage() {
+  const { data: session, status } = useSession();
+
+  const userRole = session?.user?.role;
+  const filteredTabs = TABS.filter(tab => 
+    ["branding", "billing", "team"].includes(tab.id) ? userRole === "OWNER" : true
+  );
+
   const [activeTab, setActiveTab] = useState("branding");
   const [loading, setLoading] = useState(true);
 
+  
   // Branding state
   const [branding, setBranding] = useState({ firmName: "", brandColor: "#1e3a5f", brandTagline: "", brandLogoText: "", brandLogoUrl: "" });
   const [brandingSaving, setBrandingSaving] = useState(false);
@@ -42,14 +51,6 @@ export default function SettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab");
-
-  useEffect(() => {
-    if (tab === "billing") {
-      const newUrl = window.location.pathname + "?tab=billing";
-      window.history.replaceState({}, "", newUrl);
-      setActiveTab('billing');
-    }
-  }, [tab]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -64,7 +65,18 @@ export default function SettingsPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { 
+    fetchData(); 
+    if(userRole !== 'OWNER'){
+      setActiveTab('flow-controls');
+    }
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (tab === "billing") {
+      setActiveTab('billing');
+    }
+  }, [tab]);
 
   // ── Branding save ──
   const handleSaveBranding = async () => {
@@ -152,7 +164,7 @@ export default function SettingsPage() {
         {/* ── Tab Navigation ── */}
         <div className="w-[200px] shrink-0">
           <div className="flex flex-col gap-1">
-            {TABS.map((tab) => (
+            {filteredTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
@@ -175,7 +187,7 @@ export default function SettingsPage() {
         <div className="flex-1 min-w-0">
 
           {/* ═══ BRANDING TAB ═══ */}
-          {activeTab === "branding" && (
+          {activeTab === "branding" && userRole === "OWNER" && (
             <div className="space-y-6">
               {/* Live preview */}
               <div className="bg-white rounded-[16px] p-6" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
@@ -437,13 +449,13 @@ export default function SettingsPage() {
             </div>
           )}
           {/* ═══ BILLING TAB ═══ */}
-          {activeTab === "billing" && (
+          {activeTab === "billing" && userRole === "OWNER" && (
            
            <BillingTab />
             
           )}
           {/* ═══ TEAM TAB ═══ */}
-          {activeTab === "team" && (
+          {activeTab === "team" && userRole === "OWNER" && (
            <div className="max-w-[1000px] mx-auto space-y-6">
               <TeamTab />
            </div>

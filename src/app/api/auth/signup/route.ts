@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
             email: email.toLowerCase(), // Use email from invite
             name,
             passwordHash,
-            role: invitation.role || "MEMBER" // Assign role from invite
+            role: invitation.role || "MEMBER", // Assign role from invite
+            permissions: invitation.permissions || {} // Assign permissions from invite
           }
         });
 

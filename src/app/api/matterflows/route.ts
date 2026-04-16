@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMatterFlows, saveMatterFlow } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrg } from "@/lib/tenant";
+import { hasPermission } from "@/lib/check-permission";
 
 export async function GET() {
   try {
@@ -17,6 +18,14 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     
+    const canAddMatter = await hasPermission("addWorkflows");
+    if (!canAddMatter) {
+      return NextResponse.json(
+        { error: "Unauthorized: You do not have permission to add Workflows." },
+        { status: 403 }
+      );
+    }
+
     const { orgId } = await getCurrentOrg();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },

@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth"; // Assuming you use NextAuth
 import { authOptions } from "@/lib/auth-options";
 import { getCurrentOrg } from "@/lib/tenant";
 import { sendMail } from '@/lib/send-mail';
+import { permission } from "process";
 
 export async function GET() {
   const t = await getCurrentOrg();
@@ -44,8 +45,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Team member limit reached for your subscription plan." }, { status: 403 });
     }
 
-    const { email, role } = await req.json();
-
+    const body = await req.json();
+    const { email, role, permissions } = body;
+    
     // 2. Validate input
     if (!email || !role) {
       return NextResponse.json({ error: "Email and role are required." }, { status: 400 });
@@ -96,6 +98,7 @@ export async function POST(req: Request) {
           role,
           token,
           orgId: orgId, // Link to the owner's organization
+          permissions: permissions,
           expiresAt,
           status: "pending",
         },

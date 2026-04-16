@@ -3,12 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMatterFlow, saveMatterFlow, deleteMatterFlow, reassignMattersFromFlow } from "@/lib/data";
  import { getCurrentOrg } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
+import { hasPermission } from "@/lib/check-permission";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    
     const { id } = await params;
     const flow = await getMatterFlow(id);
     if (!flow) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -23,6 +25,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    
     const { orgId } = await getCurrentOrg();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },
@@ -53,6 +56,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const canAddMatter = await hasPermission("deleteWorkflows");
+    if (!canAddMatter) {
+      return NextResponse.json(
+        { error: "Unauthorized: You do not have permission to deleted Workflows." },
+        { status: 403 }
+      );
+    }
+
     const { orgId } = await getCurrentOrg();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },

@@ -712,10 +712,10 @@ export async function getMattersWithHealth(): Promise<MatterWithHealth[]> {
   const { orgId } = await getCurrentOrg();
 
   const [matters, controls, users, flows] = await Promise.all([
-    getMatters(),
-    getFlowControls(),
-    getUsers(),
-    getMatterFlows()
+    await getMatters(),
+    await getFlowControls(),
+    await getUsers(),
+    await getMatterFlows()
   ]);
 
   return matters
@@ -981,6 +981,8 @@ export async function getFlowControls(): Promise<FlowControls> {
     breakdownInactivityDays: row.breakdownInactivityDays ?? 14,
     breakdownOnStepOverdue: row.breakdownOnStepOverdue ?? true,
     breakdownStepOverdueDays: row.breakdownStepOverdueDays ?? 21,
+    outOfFlowThresholdDays: 0,
+    flowBreakdownThresholdDays: 0,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

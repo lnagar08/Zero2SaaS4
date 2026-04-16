@@ -3,12 +3,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { advanceStage } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrg } from "@/lib/tenant";
+import { hasPermission } from "@/lib/check-permission";
 
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+
+    const canAddMatter = await hasPermission("editMatter");
+    if (!canAddMatter) {
+      return NextResponse.json(
+        { error: "Unauthorized: You do not have permission to update matters." },
+        { status: 403 }
+      );
+    }
+
     const { orgId } = await getCurrentOrg();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },

@@ -39,6 +39,7 @@ model User {
   passwordHash  String?
   role          Role     @default(MEMBER)
   parentId      String?  // For hierarchical user structures (e.g., sub-users under a main account)
+  permissions   Json?           @default("{}")
   emailVerified DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -98,6 +99,7 @@ model Invitation {
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   email     String
   role      Role     @default(MEMBER)
+  permissions   Json?           @default("{}")
   token     String   @unique @default(uuid())
   expiresAt DateTime
   createdAt DateTime @default(now())
