@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Settings, Workflow, BarChart3, ExternalLink, DollarSign } from "lucide-react";
+import { LayoutDashboard, Settings, Workflow, BarChart3, ExternalLink, DollarSign, LogOut } from "lucide-react";
 import { clsx } from "clsx";
 import { useSession } from "next-auth/react";
+import { signOut } from "next-auth/react"
 
 // SaaS NOTE: In production, filter NAV_ITEMS by user role.
 // Command Center should only show for users with role === "OWNER".
@@ -63,20 +64,53 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="px-3 py-4">
-        <div className="p-3 rounded-[10px]"
-          style={{ background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)" }}>
-          <div className="flex items-center gap-[9px]">
-            <div className="w-[32px] h-[32px] rounded-full flex items-center justify-center text-[12px] font-semibold text-white"
-              style={{ background: "linear-gradient(135deg, #6366F1, #A855F7)" }}>EW</div>
-            <div>
-              <p className="text-[13px] font-medium m-0" style={{ color: "rgba(255,255,255,0.85)" }}>Erik Weingold</p>
-              <p className="text-[11px] m-0" style={{ color: "rgba(255,255,255,0.4)" }}>PPM Lawyers</p>
-            </div>
+      <div className="px-3 py-4 space-y-3">
+      {/* User Profile Card */}
+      <div className="p-3 rounded-[10px]"
+        style={{ background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)" }}>
+        <div className="flex items-center gap-[9px]">
+          <div className="w-[32px] h-[32px] rounded-full flex items-center justify-center text-[12px] font-semibold text-white shrink-0"
+            style={{ background: "linear-gradient(135deg, #6366F1, #A855F7)" }}>
+            EW
+          </div>
+          <div className="overflow-hidden">
+            <p className="text-[13px] font-medium m-0 truncate" style={{ color: "rgba(255,255,255,0.85)" }}>
+              Erik Weingold
+            </p>
+            <p className="text-[11px] m-0 truncate" style={{ color: "rgba(255,255,255,0.4)" }}>
+              PPM Lawyers
+            </p>
           </div>
         </div>
-        <p className="text-center mt-2 text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>v4.2.0</p>
       </div>
+
+      {/* Logout Button */}
+      <button 
+        onClick={() => signOut({ callbackUrl: '/login' })}
+        className="w-full flex items-center justify-left gap-2.5 px-4 py-2.5 rounded-[10px] text-[13px] font-medium transition-all duration-200 group"
+        style={{ 
+          background: "rgba(255, 68, 68, 0.08)", 
+          border: "0.5px solid rgba(255, 68, 68, 0.2)",
+          color: "#FF4D4D"
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "rgba(255, 68, 68, 0.15)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "rgba(255, 68, 68, 0.08)";
+        }}
+      >
+        <LogOut size={16} strokeWidth={2.25} className="group-hover:-translate-x-0.5 transition-transform" />
+        <span>Logout</span>
+      </button>
+
+      {/* Version Tag */}
+      <p className="text-center mt-2 text-[10px] tracking-wider font-medium uppercase" 
+        style={{ color: "rgba(255,255,255,0.15)" }}>
+        v4.2.0
+      </p>
+    </div>
+
     </aside>
   );
 }
