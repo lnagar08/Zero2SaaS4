@@ -6,24 +6,36 @@ import { InvoiceHistory } from "./invoice-history";
 import PlansSkeleton from './PlansSkeleton';
 import { getBillingData } from "@/app/actions/billing"; // Keep your server action
 import { createPortalSession } from "@/app/actions/stripe-portal"; // Server action for Stripe Portal
+import { toast } from "sonner";
 
 export function BillingTab() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        const billingData = await getBillingData();
+  async function loadData() {
+    setLoading(true); // Start loading
+    try {
+      const billingData = await getBillingData();
+
+      // Check if the server action returned a custom error message
+      if (billingData.error) {
+        toast.error(billingData.error);
+        setData(null);
+      } else {
         setData(billingData);
-      } catch (error) {
-        console.error("Failed to load billing", error);
-      } finally {
-        setLoading(false);
       }
+    } catch (error: any) {
+      // This will only run if there is a network/crash error
+      toast.error("Something went wrong on the server");
+      console.error("Critical Failure:", error);
+    } finally {
+      setLoading(false); // Stop loading regardless of outcome
     }
-    loadData();
-  }, []);
+  }
+  loadData();
+}, []);
+
 
   if (loading) return <PlansSkeleton />;
   if (!data) return <div className="p-10 text-center">Error loading data.</div>;

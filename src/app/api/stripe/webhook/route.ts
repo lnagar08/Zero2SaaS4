@@ -24,26 +24,12 @@ export async function POST(req: NextRequest) {
         create: { orgId, stripeSubscriptionId: sub.id, stripeCustomerId: customer.id as string, stripePriceId: sub.items.data[0].price.id, status: sub.status === "trialing" ? "TRIALING" : "ACTIVE", currentPeriodStart: new Date(sub.current_period_start*1000), currentPeriodEnd: new Date(sub.current_period_end*1000), trialEnd: sub.trial_end ? new Date(sub.trial_end*1000) : null },
         update: { stripeSubscriptionId: sub.id, stripePriceId: sub.items.data[0].price.id, status: sub.status === "trialing" ? "TRIALING" : "ACTIVE", currentPeriodStart: new Date(sub.current_period_start*1000), currentPeriodEnd: new Date(sub.current_period_end*1000), trialEnd: sub.trial_end ? new Date(sub.trial_end*1000) : null },
       }); 
-      
-      // Retrieve line items to get the price ID
-      await prisma.transaction.create({
-        data: {
-          orgId: sub.metadata.orgId,
-          amount: session.amount_total / 100,
-          currency: sub.currency,
-          status: "succeeded",
-          stripePaymentId: session.id,
-          stripePriceId: sub.items.data[0].price.id, // Store the Stripe Price ID here
-          type: "subscription_payment",
-        },
-      });
       break;
     }
     case "customer.subscription.updated": {
       const sub = event.data.object as any;
-      //console.log(sub.items.data[0].current_period_start);
       const existing = await prisma.subscription.findUnique({ where: { stripeSubscriptionId: sub.id } });
-      //if (!existing) break;
+      if (!existing) break;
       const statusMap: Record<string,string> = { trialing: "TRIALING", active: "ACTIVE", past_due: "PAST_DUE", canceled: "CANCELED", unpaid: "UNPAID" };
       await prisma.subscription.update({ where: { orgId: sub.metadata.orgId }, data: { 
         status: (statusMap[sub.status] || "ACTIVE") as any, 
@@ -52,18 +38,34 @@ export async function POST(req: NextRequest) {
         currentPeriodEnd: new Date(sub.items.data[0].current_period_end*1000), 
         cancelAtPeriodEnd: sub.cancel_at_period_end || false, 
         trialEnd: sub.trial_end ? new Date(sub.trial_end*1000) : null } });
+      break;
+    }
+    // --- NEW CASE: TO TRACK TRANSACTIONS ---
+    case "invoice.paid": {
+      const invoice = event.data.object as any;
+      
+      // 1. Get organization linked to this Stripe Customer
+      const orgId = invoice.lines.data[0]?.metadata?.orgId || 
+                invoice.subscription_details?.metadata?.orgId;
 
-      await prisma.transaction.create({
-        data: {
-          orgId: sub.metadata.orgId,
-          amount: sub.items.data[0].plan.amount / 100,
-          currency: sub.currency,
-          status: "succeeded",
-          stripePaymentId: sub.latest_invoice as string,
-          stripePriceId: sub.items.data[0].price.id, // Store the Stripe Price ID here
-          type: "plan_update",
-        },
-      });
+      if (!orgId) {
+        console.error("OrgId missing in Stripe Metadata");
+        break;
+      }
+   
+        // 2. Save the transaction to Database
+        await prisma.transaction.create({
+          data: {
+            orgId: orgId,
+            amount: invoice.amount_paid / 100, 
+            currency: invoice.currency.toUpperCase(), 
+            status: invoice.status === "paid" ? "succeeded" : invoice.status, 
+            stripePaymentId: invoice.payment_intent || invoice.id || "N/A",
+            stripePriceId: invoice.lines.data[0]?.pricing?.price_details?.price || '', 
+            type: invoice.billing_reason || "plan_update", 
+          },
+        });
+      
       break;
     }
     case "customer.subscription.deleted": {

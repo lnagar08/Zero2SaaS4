@@ -3,6 +3,7 @@
 // It shows current members, invite form, and pending invitations.
 import { useState, useEffect, FormEvent } from "react";
 import { toast } from "sonner";
+import TeamMemberSkelton from "./TeamMemberSkelton";
 
 type Member = {
   id: string;
@@ -32,6 +33,7 @@ export default function TeamTab() {
   const [members, setMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -80,10 +82,18 @@ export default function TeamTab() {
 
   // Fetch team members and invites on load
   useEffect(() => {
-    fetch("/api/team/members").then(res => res.json()).then(setMembers);
-    fetch("/api/team/invite").then(res => res.json()).then(setInvites);
-  }, []);
-
+  Promise.all([
+    fetch("/api/team/members").then(res => res.json()),
+    fetch("/api/team/invite").then(res => res.json())
+  ]).then(([membersData, invitesData]) => {
+    setMembers(membersData);
+    setInvites(invitesData);
+    setIsLoading(false); 
+  }).catch(err => {
+    console.error(err);
+    setIsLoading(false);
+  });
+}, []);
 
   // Handle sending invite
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -193,7 +203,11 @@ export default function TeamTab() {
       </p>
 
       <div className="space-y-2">
-        {members.map(m => {
+        {isLoading ? (
+          [1].map((i) => <TeamMemberSkelton key={i} />)
+        )
+        :(
+        members.map(m => {
           const isEditing = editingId === m.id;
           //const isOwner = m.role === "OWNER"; 
 
@@ -257,8 +271,9 @@ export default function TeamTab() {
               </div>
               
             </div>
-          );
-        })}
+          ); 
+      }) 
+    )}
       </div>
     </section>
 
