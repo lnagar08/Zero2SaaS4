@@ -30,7 +30,16 @@ import { v4 as uuid } from "uuid";
 import { toast } from "sonner";
 
 function newStage(order: number): FlowStage {
-  return { id: uuid(), matterFlowId: "", name: "New Stage", order, defaultDurationDays: 7, steps: [], createdAt: "" };
+  return { 
+    id: uuid(), 
+    matterFlowId: "", 
+    name: "New Stage", 
+    order, 
+    defaultDurationDays: 7, 
+    expectedDurationDays: 7,
+    steps: [], 
+    createdAt: "" 
+  };
 }
 
 function newStep(stageId: string, order: number): FlowStep {
@@ -74,19 +83,9 @@ export default function MatterFlowEditorPage() {
       // Fetch affected matters count before showing dialog
       try {
         const res = await fetch(`/api/matterflows/${flowId}/apply`);
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          toast.error(errorData.error || "Save failed");
-          return;
-        }
-
         const data = await res.json();
         setAffectedMattersCount(data.count || 0);
-      } catch(err) { 
-        toast.error(err instanceof Error ? err.message : "Save failed");
-        setAffectedMattersCount(0); 
-      }
+      } catch { setAffectedMattersCount(0); }
       setShowSaveDialog(true);
     }
   };
@@ -100,20 +99,19 @@ export default function MatterFlowEditorPage() {
       const method = isNew ? "POST" : "PUT";
       const url = isNew ? "/api/matterflows" : `/api/matterflows/${flowId}`;
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(flow) });
-       
-      if (!res.ok) {
-        const errorData = await res.json();
-        toast.error(errorData.error || "Save failed");
-        return;
-      }
       const result = await res.json();
-      setSaved(true); setTimeout(() => setSaved(false), 2000);
-      if (isNew && result.id) router.push(`/matterflows/${result.id}`);
-      else setFlow(result);
+      if (!res.ok) throw new Error(result.error || "Failed to save");
+      setSaved(true);
+      if (isNew && result.id) {
+        // Brief success state then redirect to workflows list
+        setTimeout(() => router.push("/matterflows"), 800);
+      } else {
+        setTimeout(() => setSaved(false), 2000);
+        setFlow(result);
+      }
     } catch (err) { 
-      toast.error(err instanceof Error ? err.message : "Save failed");
-      console.error("Save failed:", err); 
-    }
+      toast.error((err as Error).message || "An error occurred while saving.");
+     }
     finally { setSaving(false); }
   };
 
@@ -127,22 +125,12 @@ export default function MatterFlowEditorPage() {
       const res = await fetch(`/api/matterflows/${flowId}`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(flow),
       });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        toast.error(errorData.error || "Save failed");
-        return;
-      }
-
       const result = await res.json();
       setFlow(result);
       // Then apply to existing matters
       await fetch(`/api/matterflows/${flowId}/apply`, { method: "POST" });
       setSaved(true); setTimeout(() => setSaved(false), 2000);
-    } catch (err) { 
-      toast.error(err instanceof Error ? err.message : "Save failed");
-      console.error("Save + apply failed:", err); 
-    }
+    } catch (err) { console.error("Save + apply failed:", err); }
     finally { setSaving(false); }
   };
 
@@ -156,20 +144,10 @@ export default function MatterFlowEditorPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...flow, id: undefined, isDefault: false }),
       });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        toast.error(errorData.error || "Save failed");
-        return;
-      }
-
       const result = await res.json();
       setSaved(true); setTimeout(() => setSaved(false), 2000);
       if (result.id) router.push(`/matterflows/${result.id}`);
-    } catch (err) { 
-      toast.error(err instanceof Error ? err.message : "Save failed");
-      console.error("Save as new failed:", err); 
-    }
+    } catch (err) { console.error("Save as new failed:", err); }
     finally { setSaving(false); }
   };
 
@@ -198,9 +176,7 @@ export default function MatterFlowEditorPage() {
 
   if (loading) return <PageLoader />;
   if (!flow) return null;
-  //const selectedStage = flow.stages[selectedStageIdx];
-  const stages = flow?.stages || [];
-  const selectedStage = stages[selectedStageIdx] || null;
+  const selectedStage = flow.stages?.[selectedStageIdx] || null;
 
   return (
     <div>
@@ -222,17 +198,8 @@ export default function MatterFlowEditorPage() {
                 setPublishing(true);
                 try {
                   const res = await fetch(`/api/matterflows/${flowId}/publish`, { method: "POST" });
-                  if (!res.ok) {
-                      const errorData = await res.json();
-                      toast.error(errorData.error || "Save failed");
-                      return;
-                    }
-
                   const data = await res.json();
                   setFlow({ ...flow, isPublic: data.isPublic });
-                }catch (err) { 
-                  toast.error(err instanceof Error ? err.message : "Save failed");
-                  console.error("Save as new failed:", err); 
                 } finally { setPublishing(false); }
               }}
               disabled={publishing}
@@ -245,14 +212,10 @@ export default function MatterFlowEditorPage() {
               {publishing ? "..." : flow.isPublic ? "Unpublish" : "Publish to Public Library"}
             </button>
           )}
-          <button 
-          onClick={handleSaveClick} 
-          disabled={saving || !flow?.name?.trim()} 
-          className={clsx(
-            "btn-primary flex items-center gap-2 text-[15px] py-2 px-4", 
-            (saving || !flow?.name?.trim()) && "opacity-50 cursor-not-allowed"
-          )}
-        >
+          <button onClick={handleSaveClick} 
+          disabled={saving || !flow.name?.trim()} 
+          className={clsx("btn-primary flex items-center gap-2 text-[15px] py-2 px-4", (saving || !flow.name?.trim()) && "opacity-50 cursor-not-allowed")}>
+            {saved ? <Check className="w-[18px] h-[18px]" /> : <Save className="w-[18px] h-[18px]" />}
             {saving ? "Saving..." : saved ? "Saved!" : "Save"}
           </button>
         </div>
@@ -261,10 +224,16 @@ export default function MatterFlowEditorPage() {
       {/* Meta card */}
       <div className="rounded-[16px] p-7 mb-7 bg-[var(--color-surface-card)] shadow-[var(--shadow-card)]">
         <div className="grid grid-cols-2 gap-5 mb-4">
-          <div><label className="block text-[14px] font-medium text-[var(--color-text-secondary)] mb-2">Name *</label><input className="input-field py-3.5 text-[16px]" value={flow.name} onChange={(e) => updateFlow({ name: e.target.value })} placeholder="e.g., Reg D Private Placement" /></div>
+          <div><label className="block text-[14px] font-medium text-[var(--color-text-secondary)] mb-2">Name *</label><input className="input-field py-3.5 text-[16px]" value={flow.name || ""} onChange={(e) => updateFlow({ name: e.target.value })} placeholder="e.g., Reg D Private Placement" /></div>
           <div><label className="block text-[14px] font-medium text-[var(--color-text-secondary)] mb-2">Description</label><input className="input-field py-3.5 text-[16px]" value={flow.description || ""} onChange={(e) => updateFlow({ description: e.target.value })} placeholder="Brief description..." /></div>
         </div>
-        <label className="flex items-center gap-2.5 cursor-pointer"><input type="checkbox" checked={flow.isDefault} onChange={(e) => updateFlow({ isDefault: e.target.checked })} className="w-[18px] h-[18px] rounded" /><span className="text-[14px] text-[var(--color-text-secondary)]">Set as default workflow for new matters</span></label>
+        <label className="flex items-center gap-2.5 cursor-pointer"><input type="checkbox" checked={flow.isDefault} onChange={async (e) => {
+          const checked = e.target.checked;
+          updateFlow({ isDefault: checked });
+          if (!isNew) {
+            await fetch(`/api/matterflows/${flowId}/default`, { method: "POST" });
+          }
+        }} className="w-[18px] h-[18px] rounded" /><span className="text-[14px] text-[var(--color-text-secondary)]">Set as default workflow for new matters</span></label>
       </div>
 
       {/* Two-panel */}
@@ -276,7 +245,7 @@ export default function MatterFlowEditorPage() {
             <button onClick={addStage} className="text-[14px] text-[var(--color-mf-600)] hover:text-[var(--color-mf-700)] flex items-center gap-1 cursor-pointer font-medium"><Plus className="w-4 h-4" /> Add Stage</button>
           </div>
           <div className="space-y-1.5">
-            {(flow?.stages || []).map((stage, idx) => (
+            {(flow.stages || []).map((stage, idx) => (
               <button key={stage.id} onClick={() => setSelectedStageIdx(idx)} className={clsx("w-full flex items-center gap-3 px-4 py-4 rounded-[16px] text-left transition-all cursor-pointer shadow-[var(--shadow-card)]", selectedStageIdx === idx ? "bg-[var(--color-surface-card)] ring-[1.5px] ring-[var(--color-mf-400)]" : "bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)]")}>
                 <div className={clsx("w-[30px] h-[30px] rounded-full flex items-center justify-center text-[13px] font-semibold shrink-0", selectedStageIdx === idx ? "bg-[var(--color-mf-600)] text-white" : "bg-gray-100 text-gray-500")}>{idx + 1}</div>
                 <div className="flex-1 min-w-0"><span className="text-[15px] font-medium text-[var(--color-text-primary)] truncate block">{stage.name || "Untitled Stage"}</span><span className="text-[13px] text-[var(--color-text-muted)]">{stage.steps.length} step{stage.steps.length !== 1 ? "s" : ""}{stage.defaultDurationDays ? ` · ${stage.defaultDurationDays} days` : ""}</span></div>

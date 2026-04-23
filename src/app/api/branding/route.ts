@@ -1,4 +1,5 @@
 import { getCurrentOrg } from "@/lib/tenant";
+import { checkInternalAccount } from "@/lib/check-internal-account";
 /**
  * BRANDING API
  * 
@@ -37,10 +38,12 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const isInternal = await checkInternalAccount();
+
     const sub = await prisma.subscription.findUnique({
       where: { orgId },
     });
-    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+    if (!isInternal && (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status))) {
       return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
     }
     

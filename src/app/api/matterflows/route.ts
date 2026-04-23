@@ -4,6 +4,7 @@ import { getMatterFlows, saveMatterFlow } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrg } from "@/lib/tenant";
 import { hasPermission } from "@/lib/check-permission";
+import { checkInternalAccount } from "@/lib/check-internal-account";
 
 export async function GET() {
   try {
@@ -27,10 +28,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { orgId } = await getCurrentOrg();
+    
+    const isInternal = await checkInternalAccount();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },
     });
-    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+    if (!isInternal && (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status))) {
       return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
     }
 

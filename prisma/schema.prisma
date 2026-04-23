@@ -19,6 +19,8 @@ model Organization {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   users            User[]
+  isInternal       Boolean  @default(false) // Flag to identify internal/test accounts
+  hasUsedTrial   Boolean @default(false)
   invitations      Invitation[]
   subscription     Subscription?
   matterFlows      MatterFlow[]
@@ -267,6 +269,7 @@ model FlowControl {
   breakdownInactivityDays  Int      @default(14)
   breakdownOnStepOverdue   Boolean  @default(true)
   breakdownStepOverdueDays Int      @default(21)
+  healthEvaluation         String   @default("step")
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 }

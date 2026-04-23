@@ -24,6 +24,12 @@ export async function POST(req: NextRequest) {
         create: { orgId, stripeSubscriptionId: sub.id, stripeCustomerId: customer.id as string, stripePriceId: sub.items.data[0].price.id, status: sub.status === "trialing" ? "TRIALING" : "ACTIVE", currentPeriodStart: new Date(sub.current_period_start*1000), currentPeriodEnd: new Date(sub.current_period_end*1000), trialEnd: sub.trial_end ? new Date(sub.trial_end*1000) : null },
         update: { stripeSubscriptionId: sub.id, stripePriceId: sub.items.data[0].price.id, status: sub.status === "trialing" ? "TRIALING" : "ACTIVE", currentPeriodStart: new Date(sub.current_period_start*1000), currentPeriodEnd: new Date(sub.current_period_end*1000), trialEnd: sub.trial_end ? new Date(sub.trial_end*1000) : null },
       }); 
+
+      await prisma.organization.update({
+        where: { id: orgId },
+        data: { hasUsedTrial: true }
+      });
+
       break;
     }
     case "customer.subscription.updated": {
@@ -31,13 +37,16 @@ export async function POST(req: NextRequest) {
       const existing = await prisma.subscription.findUnique({ where: { stripeSubscriptionId: sub.id } });
       if (!existing) break;
       const statusMap: Record<string,string> = { trialing: "TRIALING", active: "ACTIVE", past_due: "PAST_DUE", canceled: "CANCELED", unpaid: "UNPAID" };
-      await prisma.subscription.update({ where: { orgId: sub.metadata.orgId }, data: { 
-        status: (statusMap[sub.status] || "ACTIVE") as any, 
-        stripePriceId: sub.items.data[0].price.id, 
-        currentPeriodStart: new Date(sub.items.data[0].current_period_start*1000), 
-        currentPeriodEnd: new Date(sub.items.data[0].current_period_end*1000), 
-        cancelAtPeriodEnd: sub.cancel_at_period_end || false, 
-        trialEnd: sub.trial_end ? new Date(sub.trial_end*1000) : null } });
+      await prisma.subscription.update({ where: { orgId: sub.metadata.orgId }, 
+        data: { 
+          status: (statusMap[sub.status] || "ACTIVE") as any, 
+          stripePriceId: sub.items.data[0].price.id, 
+          currentPeriodStart: new Date(sub.current_period_start * 1000), 
+          currentPeriodEnd: new Date(sub.current_period_end * 1000), 
+          cancelAtPeriodEnd: sub.cancel_at_period_end || false, 
+          trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null 
+        } 
+      });
       break;
     }
     // --- NEW CASE: TO TRACK TRANSACTIONS ---

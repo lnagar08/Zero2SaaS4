@@ -3,14 +3,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLoader } from "@/components/ui/Spinner";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Save, Check, Info, Palette, SlidersHorizontal, Upload, DollarSign, User2Icon, User2, Users2 } from "lucide-react";
+import { Save, Check, Info, Palette, SlidersHorizontal, Upload, Users2, DollarSign } from "lucide-react";
 import { clsx } from "clsx";
 import type { FlowControls } from "@/types";
-import { toast } from 'sonner';
+import { toast } from "sonner";
+import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { BillingTab } from "@/components/BillingTab";
 import TeamTab from "@/components/TeamTab";
-import { useSession } from "next-auth/react";
+
 // ── Flow Controls config — simple threshold fields ──
 const CONTROL_FIELDS: {
   key: keyof FlowControls; label: string; description: string; unit: string; min: number; max: number;
@@ -31,14 +32,18 @@ export default function SettingsPage() {
   const { data: session, status } = useSession();
 
   const userRole = session?.user?.role;
-  const filteredTabs = TABS.filter(tab => 
-    ["branding", "billing", "team"].includes(tab.id) ? userRole === "OWNER" : true
-  );
+  const isInternal = session?.user?.isInternal;
+
+  const filteredTabs = TABS.filter(tab => {
+    if (tab.id === "billing" && isInternal) return false;
+    return ["branding", "billing", "team"].includes(tab.id) ? userRole === "OWNER" : true;
+  });
 
   const [activeTab, setActiveTab] = useState("branding");
   const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab");
 
-  
   // Branding state
   const [branding, setBranding] = useState({ firmName: "", brandColor: "#1e3a5f", brandTagline: "", brandLogoText: "", brandLogoUrl: "" });
   const [brandingSaving, setBrandingSaving] = useState(false);
@@ -48,9 +53,6 @@ export default function SettingsPage() {
   const [controls, setControls] = useState<FlowControls | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const tab = searchParams.get("tab");
 
   const fetchData = useCallback(async () => {
     try {
@@ -60,10 +62,11 @@ export default function SettingsPage() {
       ]);
       setControls(await ctrlRes.json());
       setBranding(await brandRes.json());
-    
     } catch (err) { console.error("Failed to load:", err); }
     finally { setLoading(false); }
   }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => { 
     fetchData(); 
@@ -89,19 +92,16 @@ export default function SettingsPage() {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        console.log(errorData);
-        toast.error(errorData.error || "Failed to save branding");
+        const data = await res.json();
+        toast.error(`Failed to save: ${data.error || res.statusText}`);
         return;
       }
-
       setBranding(await res.json());
       setBrandingSaved(true);
       window.dispatchEvent(new Event("branding-updated"));
       setTimeout(() => setBrandingSaved(false), 2000);
-      
     } catch (err) { 
-      toast.error(err instanceof Error ? err.message : "Failed to save branding");
+        toast.error(err instanceof Error ? err.message : "Save failed");
       console.error("Save failed:", err); 
     }
     finally { setBrandingSaving(false); }
@@ -129,30 +129,32 @@ export default function SettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          healthEvaluation: controls.healthEvaluation,
           dueSoonWindowDays: controls.dueSoonWindowDays,
-          outOfFlowThresholdDays: controls.outOfFlowThresholdDays,
           stageRiskThresholdDays: controls.stageRiskThresholdDays,
-          flowBreakdownThresholdDays: controls.flowBreakdownThresholdDays,
           graceWindowDays: controls.graceWindowDays,
+          breakdownOnPastDue: controls.breakdownOnPastDue,
+          breakdownOnInactivity: controls.breakdownOnInactivity,
+          breakdownInactivityDays: controls.breakdownInactivityDays,
+          breakdownOnStepOverdue: controls.breakdownOnStepOverdue,
+          breakdownStepOverdueDays: controls.breakdownStepOverdueDays,
         }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const errorData = await res.json();
-        console.log(errorData);
-        toast.error(errorData.error || "Save failed");
-        return;
+        toast.error(`Failed to save: ${data.error || res.statusText}`);
+        return; 
       }
-      setControls(await res.json());
+      setControls(data);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) { 
       toast.error(err instanceof Error ? err.message : "Save failed");
-      console.error("Save failed:", err); 
     }
     finally { setSaving(false); }
   };
-  
 
   if (loading) return <PageLoader />;
 
@@ -187,7 +189,7 @@ export default function SettingsPage() {
         <div className="flex-1 min-w-0">
 
           {/* ═══ BRANDING TAB ═══ */}
-          {activeTab === "branding" && userRole === "OWNER" && (
+          {activeTab === "branding" && (
             <div className="space-y-6">
               {/* Live preview */}
               <div className="bg-white rounded-[16px] p-6" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
@@ -270,12 +272,12 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[13px] font-medium text-[var(--color-text-secondary)] block mb-1.5">Firm name</label>
-                    <input type="text" className="input-field" value={branding.firmName}
+                    <input type="text" className="input-field" value={branding.firmName || ""} 
                       onChange={(e) => setBranding({ ...branding, firmName: e.target.value })} placeholder="PPM Lawyers" />
                   </div>
                   <div>
                     <label className="text-[13px] font-medium text-[var(--color-text-secondary)] block mb-1.5">Tagline</label>
-                    <input type="text" className="input-field" value={branding.brandTagline}
+                    <input type="text" className="input-field" value={branding.brandTagline || ""}
                       onChange={(e) => setBranding({ ...branding, brandTagline: e.target.value })} placeholder="Securities Law · White Plains, NY" />
                   </div>
                   <div>
@@ -284,13 +286,13 @@ export default function SettingsPage() {
                       <input type="color" value={branding.brandColor}
                         onChange={(e) => setBranding({ ...branding, brandColor: e.target.value })}
                         className="w-[40px] h-[40px] rounded-[8px] border border-[var(--color-border)] cursor-pointer p-0.5" />
-                      <input type="text" className="input-field flex-1" value={branding.brandColor}
+                      <input type="text" className="input-field flex-1" value={branding.brandColor || ""}
                         onChange={(e) => setBranding({ ...branding, brandColor: e.target.value })} placeholder="#1e3a5f" />
                     </div>
                   </div>
                   <div>
                     <label className="text-[13px] font-medium text-[var(--color-text-secondary)] block mb-1.5">Logo text (fallback)</label>
-                    <input type="text" className="input-field" value={branding.brandLogoText} maxLength={4}
+                    <input type="text" className="input-field" value={branding.brandLogoText || ""} maxLength={4}
                       onChange={(e) => setBranding({ ...branding, brandLogoText: e.target.value.substring(0, 4) })} placeholder="PPM" />
                     <p className="text-[11px] text-[var(--color-text-muted)] mt-1">1-4 characters. Used when no logo image is uploaded.</p>
                   </div>
@@ -329,6 +331,36 @@ export default function SettingsPage() {
 
                 {/* Threshold controls */}
                 <div className="space-y-4">
+                  {/* Health evaluation mode toggle */}
+                  <div className="p-5 rounded-[12px] bg-[var(--color-surface-dim)]">
+                    <label className="text-[14px] font-semibold text-[var(--color-text-primary)] block mb-1">Flow health evaluation</label>
+                    <p className="text-[12.5px] text-[var(--color-text-muted)] m-0 mb-3">Choose how MatterGuardian determines a matter&apos;s health status.</p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setControls({ ...controls, healthEvaluation: "step" })}
+                        className="flex-1 text-left p-3 rounded-[10px] cursor-pointer transition-all"
+                        style={{
+                          background: controls.healthEvaluation === "step" ? "var(--color-mf-50)" : "white",
+                          border: controls.healthEvaluation === "step" ? "2px solid var(--color-mf-500)" : "1px solid var(--color-border-light)",
+                        }}
+                      >
+                        <span className="text-[13px] font-semibold block" style={{ color: "var(--color-text-primary)" }}>Step deadlines</span>
+                        <span className="text-[12px] block mt-0.5" style={{ color: "var(--color-text-muted)" }}>Any overdue step changes the matter&apos;s status. Strictest tracking.</span>
+                      </button>
+                      <button
+                        onClick={() => setControls({ ...controls, healthEvaluation: "stage" })}
+                        className="flex-1 text-left p-3 rounded-[10px] cursor-pointer transition-all"
+                        style={{
+                          background: controls.healthEvaluation === "stage" ? "var(--color-mf-50)" : "white",
+                          border: controls.healthEvaluation === "stage" ? "2px solid var(--color-mf-500)" : "1px solid var(--color-border-light)",
+                        }}
+                      >
+                        <span className="text-[13px] font-semibold block" style={{ color: "var(--color-text-primary)" }}>Stage deadlines</span>
+                        <span className="text-[12px] block mt-0.5" style={{ color: "var(--color-text-muted)" }}>Overdue steps show as warnings. Status only changes when the stage itself is late.</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] mt-2 m-0" style={{ color: "var(--color-text-muted)" }}>Overdue steps always show red in the progress bar regardless of this setting.</p>
+                  </div>
                   {CONTROL_FIELDS.map((field) => {
                     const value = controls[field.key] as number;
                     return (

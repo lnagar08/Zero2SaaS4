@@ -39,7 +39,7 @@ export async function getBillingData() {
         limit: 10,
       })
     ]);
-
+    
     // CASE 2: No active subscription found on Stripe for this customer
     const sub = subscriptions.data[0];
     if (!sub) {
@@ -49,7 +49,7 @@ export async function getBillingData() {
         error: null
       };
     }
-
+    
     const paymentMethod = sub?.default_payment_method as any;
 
     // Fetch product details to get the Plan Name
@@ -69,13 +69,21 @@ export async function getBillingData() {
       where: { stripePriceId: sub?.items.data[0].price.id }
     });
     
+    const rawTimestamp = (organization.status === "TRIALING" && organization.trialEnd) 
+      ? organization.trialEnd 
+      : organization.currentPeriodEnd;
+    
+    const nextDate = rawTimestamp 
+      ? format(new Date(rawTimestamp), "MMM dd, yyyy") 
+      : "N/A";
+    
     // Return structured data for the UI
     return {
       currentPlan: {
         name: product.name,
         amount: (sub?.items.data[0].plan.amount ?? 0) / 100,
-        status: sub?.status || "Inactive",
-        nextDate: sub ? format(new Date(sub.current_period_end * 1000), "MMM dd, yyyy") : "N/A",
+        status: organization.status || "Inactive",
+        nextDate: nextDate,
         last4: paymentMethod?.card?.last4 || "0000",
         priceId: sub?.items.data[0].price.id,
         memberSince: new Date(sub.start_date * 1000).toLocaleDateString('en-US', {

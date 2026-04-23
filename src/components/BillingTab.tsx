@@ -52,6 +52,7 @@ export function BillingTab() {
   }else{
     userLimit = 'Custom'; 
   }
+
   return (
     <div className="space-y-10">
       {/* SECTION 1: CURRENT PLAN */}
@@ -67,7 +68,7 @@ export function BillingTab() {
                 <h2 className="text-2xl font-bold text-slate-900">{currentPlan.name}</h2>
                 <p className="text-slate-500 mt-1">${currentPlan.amount} / month · {userLimit} users</p>
             </div>
-            <span className="bg-[#F0F2FE] text-[#5A38C1] text-sm font-bold px-4 py-1.5 rounded-lg capitalize">{currentPlan.status}</span>
+           <StatusBadge status={currentPlan.status || "NO_SUB"} />
             </div>
 
             <div className="grid grid-cols-2 gap-y-6 mb-8">
@@ -116,4 +117,17 @@ export function BillingTab() {
       </section>
     </div>
   );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string,{bg:string,text:string,label:string}> = {
+    ACTIVE: {bg:"#ecfdf5",text:"#065f46",label:"Active"},
+    TRIALING: {bg:"#fffbeb",text:"#92400e",label:"Trial"},
+    PAST_DUE: {bg:"#fef2f2",text:"#991b1b",label:"Past Due"},
+    CANCELED: {bg:"#f1f5f9",text:"#64748b",label:"Canceled"},
+    UNPAID: {bg:"#fef2f2",text:"#991b1b",label:"Unpaid"},
+    NO_SUB: {bg:"#f1f5f9",text:"#94a3b8",label:"No Subscription"},
+  };
+  const s = styles[status] || styles.NO_SUB;
+  return <span className="text-sm font-bold px-4 py-1.5 rounded-lg capitalize" style={{fontWeight:600,background:s.bg,color:s.text}}>{s.label}</span>;
 }

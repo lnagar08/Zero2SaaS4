@@ -3,6 +3,7 @@ import { getCurrentOrg } from "@/lib/tenant";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/check-permission";
+import { checkInternalAccount } from "@/lib/check-internal-account";
 
 export async function POST(
   request: NextRequest,
@@ -20,11 +21,12 @@ export async function POST(
     const { id: matterId } = await params;
     const { stepProgressId } = await request.json();
     const { orgId } = await getCurrentOrg();
-    
+            
+    const isInternal = await checkInternalAccount();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },
     });
-    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+    if (!isInternal && (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status))) {
       return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
     }
 

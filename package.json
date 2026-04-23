@@ -1,6 +1,6 @@
 {
   "name": "matterflow",
-  "version": "4.2.0",
+  "version": "4.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.0.0",
-    "@prisma/client": "^5.0.0",
+    "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

@@ -17,6 +17,14 @@ export async function createCheckoutSession(priceId: string) {
     if (!orgId || !userEmail) {
         throw new Error("Organization context or user email is missing.");
     }
+
+    const org = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { hasUsedTrial: true }
+    });
+
+    const trialDays = org?.hasUsedTrial ? null : 30;
+
   // 1. Get the current user's Stripe Customer ID from your DB
   // This is a placeholder; replace it with your actual auth/db logic.
     let stripeCustomerId: string | null = 'string | null'; // Initialize as empty string to avoid 'string | null' issues
@@ -61,6 +69,7 @@ export async function createCheckoutSession(priceId: string) {
         priceId: priceId,
       },
       subscription_data: {
+        ...(trialDays && { trial_period_days: trialDays }), // Optional: Offer a trial period
         metadata: {
         orgId: orgId,
         },

@@ -4,6 +4,7 @@ import { getMatters, createMatter } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrg } from "@/lib/tenant";
 import { hasPermission } from "@/lib/check-permission";
+import { checkInternalAccount } from "@/lib/check-internal-account";
 
 export async function GET() {
   try {
@@ -26,27 +27,38 @@ export async function POST(request: NextRequest) {
     }
     
     const { orgId } = await getCurrentOrg();
-    const sub = await prisma.subscription.findUnique({
-      where: { orgId },
-    });
-    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
-      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
-    }
+    const isInternal = await checkInternalAccount();
 
-    const totalMatter = await prisma.matter.count({
-      where:{
-        orgId
+    if (!isInternal){
+      
+      const sub = await prisma.subscription.findUnique({
+        where: { orgId },
+      });
+      if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+        return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
       }
-    });
 
-    const maxMatter = await prisma.plan.findUnique({
-      where: { stripePriceId: sub.stripePriceId }
-    });
-    
-    // Check if the plan has a limit and if the user has reached it
-    if (maxMatter?.allowMatter && totalMatter >= maxMatter.allowMatter) {
-      // If the current count is equal to or more than allowed, block creation
-      return NextResponse.json({ error: "Matter limit reached for your plan." }, { status: 403 });
+      const totalMatter = await prisma.matter.count({
+        where:{
+          orgId
+        }
+      });
+
+      
+      const maxMatter = await prisma.plan.findUnique({
+        where: { stripePriceId: sub.stripePriceId }
+      });
+      
+      const isTrialing = sub.status === "TRIALING"; 
+      if(!isTrialing){
+        // Check if the plan has a limit and if the user has reached it
+        if (maxMatter?.allowMatter && totalMatter >= maxMatter.allowMatter) {
+          // If the current count is equal to or more than allowed, block creation
+          return NextResponse.json({ error: "Matter limit reached for your plan." }, { status: 403 });
+        }
+      }
+      
+
     }
     
     const body = await request.json();

@@ -28,6 +28,7 @@ import { differenceInCalendarDays, parseISO, isValid } from "date-fns";
 const DEFAULT_CONTROLS: FlowControls = {
   id: "default",
   firmId: "default",
+  healthEvaluation: "step",
   dueSoonWindowDays: 2,
   stageRiskThresholdDays: 14,
   graceWindowDays: 2,
@@ -36,8 +37,6 @@ const DEFAULT_CONTROLS: FlowControls = {
   breakdownInactivityDays: 14,
   breakdownOnStepOverdue: true,
   breakdownStepOverdueDays: 21,
-  outOfFlowThresholdDays: 30,     
-  flowBreakdownThresholdDays: 60,
   createdAt: "",
   updatedAt: "",
 };
@@ -134,12 +133,15 @@ export function computeFlowHealth(input: ComputeHealthInput): FlowHealthResult {
   const inGracePeriod = currentStage?.startedAt && daysInCurrentStage <= controls.graceWindowDays;
 
   // ============================================================
-  // Apply precedence rules (corrected)
+  // Apply precedence rules
   // ============================================================
   let healthStatus: FlowHealthStatus = "in_flow";
+  let stepWarnings = 0;
+  let stepWarningLevel: "none" | "due_soon" | "overdue" = "none";
 
   if (!inGracePeriod) {
     // ── FLOW BREAKDOWN — configurable conditions (OR logic) ──
+    // Breakdown always applies regardless of health evaluation mode
     let isBreakdown = false;
 
     // Condition 1: Matter exceeded overall due date
@@ -166,20 +168,50 @@ export function computeFlowHealth(input: ComputeHealthInput): FlowHealthResult {
     if (isBreakdown) {
       healthStatus = "flow_breakdown";
     }
-    // ── OUT OF FLOW — any step is overdue (past due date) ──
-    else if (overdueSteps > 0) {
-      healthStatus = "out_of_flow";
-      reasons.push(`${overdueSteps} step${overdueSteps !== 1 ? "s" : ""} overdue`);
-      if (maxOverdueDays > 0) reasons.push(`Most overdue: ${maxOverdueDays} day${maxOverdueDays !== 1 ? "s" : ""}`);
+    // ── STAGE-LEVEL HEALTH — step issues become warnings, not status changes ──
+    else if (controls.healthEvaluation === "stage") {
+      // Check if the STAGE itself is overdue (past its expected duration)
+      const stage = currentStage as any;
+      const stageDuration = stage?.expectedDurationDays || 0;
+      const stageOverdue = stageDuration > 0 && daysInCurrentStage > stageDuration;
+
+      if (stageOverdue) {
+        // Stage itself is late — this IS a real problem
+        healthStatus = "out_of_flow";
+        reasons.push(`Stage overdue (${daysInCurrentStage} days, expected ${stageDuration})`);
+      } else if (daysInCurrentStage >= controls.stageRiskThresholdDays) {
+        healthStatus = "at_flow_risk";
+        reasons.push(`${daysInCurrentStage} days in stage (threshold: ${controls.stageRiskThresholdDays})`);
+      } else {
+        // Stage is on time — step issues are just warnings
+        healthStatus = "in_flow";
+        if (overdueSteps > 0) {
+          stepWarnings = overdueSteps;
+          stepWarningLevel = "overdue";
+          reasons.push(`${overdueSteps} step${overdueSteps !== 1 ? "s" : ""} overdue (stage on track)`);
+        } else if (dueSoonSteps > 0) {
+          stepWarnings = dueSoonSteps;
+          stepWarningLevel = "due_soon";
+          reasons.push(`${dueSoonSteps} step${dueSoonSteps !== 1 ? "s" : ""} due soon (stage on track)`);
+        } else {
+          reasons.push("On track");
+        }
+      }
     }
-    // ── AT FLOW RISK — step due soon or stage stalling ──
-    else if (
-      dueSoonSteps > 0 ||
-      daysInCurrentStage >= controls.stageRiskThresholdDays
-    ) {
-      healthStatus = "at_flow_risk";
-      if (dueSoonSteps > 0) reasons.push(`${dueSoonSteps} step${dueSoonSteps !== 1 ? "s" : ""} due within ${controls.dueSoonWindowDays} day${controls.dueSoonWindowDays !== 1 ? "s" : ""}`);
-      if (daysInCurrentStage >= controls.stageRiskThresholdDays) reasons.push(`${daysInCurrentStage} days in stage (threshold: ${controls.stageRiskThresholdDays})`);
+    // ── STEP-LEVEL HEALTH (default) — any step overdue changes status ──
+    else {
+      if (overdueSteps > 0) {
+        healthStatus = "out_of_flow";
+        reasons.push(`${overdueSteps} step${overdueSteps !== 1 ? "s" : ""} overdue`);
+        if (maxOverdueDays > 0) reasons.push(`Most overdue: ${maxOverdueDays} day${maxOverdueDays !== 1 ? "s" : ""}`);
+      } else if (
+        dueSoonSteps > 0 ||
+        daysInCurrentStage >= controls.stageRiskThresholdDays
+      ) {
+        healthStatus = "at_flow_risk";
+        if (dueSoonSteps > 0) reasons.push(`${dueSoonSteps} step${dueSoonSteps !== 1 ? "s" : ""} due within ${controls.dueSoonWindowDays} day${controls.dueSoonWindowDays !== 1 ? "s" : ""}`);
+        if (daysInCurrentStage >= controls.stageRiskThresholdDays) reasons.push(`${daysInCurrentStage} days in stage (threshold: ${controls.stageRiskThresholdDays})`);
+      }
     }
   }
 
@@ -196,6 +228,8 @@ export function computeFlowHealth(input: ComputeHealthInput): FlowHealthResult {
     completedSteps,
     overdueSteps,
     dueSoonSteps,
+    stepWarnings,
+    stepWarningLevel,
     currentStageName: currentStage?.stageName,
     currentStageIndex,
     totalStages: stageProgress.length,
@@ -221,6 +255,8 @@ function buildResult(
     completedSteps: allSteps.filter((s) => s.isCompleted).length,
     overdueSteps: 0,
     dueSoonSteps: 0,
+    stepWarnings: 0,
+    stepWarningLevel: "none" as const,
     currentStageName: stageProgress.find((sp) => !sp.completedAt)?.stageName,
     currentStageIndex: stageProgress.findIndex((sp) => !sp.completedAt),
     totalStages: stageProgress.length,

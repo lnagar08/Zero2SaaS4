@@ -29,7 +29,7 @@ export default async function AdminDashboard() {
         <MetricCard label="In Trial" value={trialSubs} color="#f59e0b" />
         <MetricCard label="Past Due" value={pastDueSubs} color="#ef4444" />
       </div>
-
+ 
       <h2 style={{fontSize:20,fontWeight:600,marginBottom:16}}>Recent Customers</h2>
       <div style={{background:"white",borderRadius:16,overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -38,6 +38,7 @@ export default async function AdminDashboard() {
               <th style={{textAlign:"left",padding:"12px 20px",fontSize:13,color:"#64748b",fontWeight:500}}>Organization</th>
               <th style={{textAlign:"left",padding:"12px 20px",fontSize:13,color:"#64748b",fontWeight:500}}>Users</th>
               <th style={{textAlign:"left",padding:"12px 20px",fontSize:13,color:"#64748b",fontWeight:500}}>Status</th>
+              <th style={{textAlign:"left",padding:"12px 20px",fontSize:13,color:"#64748b",fontWeight:500}}>Valid up to</th>
               <th style={{textAlign:"left",padding:"12px 20px",fontSize:13,color:"#64748b",fontWeight:500}}>Created</th>
             </tr>
           </thead>
@@ -47,6 +48,21 @@ export default async function AdminDashboard() {
                 <td style={{padding:"14px 20px"}}><a href={"/admin/customers/"+org.id} style={{fontWeight:500,color:"#0f172a",textDecoration:"none"}}>{org.name}</a><br/><span style={{fontSize:12,color:"#94a3b8"}}>{org.slug}</span></td>
                 <td style={{padding:"14px 20px",color:"#475569"}}>{org._count.users}</td>
                 <td style={{padding:"14px 20px"}}><StatusBadge status={org.subscription?.status || "NO_SUB"} /></td>
+                <td style={{padding:"14px 20px"}}>
+                  {(() => {
+                    const sub = org.subscription;
+                    if (!sub) return "—";
+                    const displayDate = sub.status === "TRIALING" ? sub.trialEnd : sub.currentPeriodEnd;
+
+                    if (!displayDate) return "—";
+
+                    return displayDate.toLocaleDateString('en-US', {
+                      day: "numeric",
+                      month: "short",
+                      year: "2-digit"
+                    });
+                  })()}
+                </td>
                 <td style={{padding:"14px 20px",color:"#94a3b8",fontSize:14}}>{org.createdAt.toLocaleDateString()}</td>
               </tr>
             ))}

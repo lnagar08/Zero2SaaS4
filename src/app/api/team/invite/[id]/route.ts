@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth"; // Assuming you use NextAuth
 import { authOptions } from "@/lib/auth-options";
 import { getCurrentOrg } from "@/lib/tenant";
 import { sendMail } from '@/lib/send-mail';
+import { checkInternalAccount } from "@/lib/check-internal-account";
 
 export async function POST(
   req: Request,
@@ -26,10 +27,11 @@ export async function POST(
       return NextResponse.json({ error: "Organization ID is missing." }, { status: 400 });
     }
 
+    const isInternal = await checkInternalAccount();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },
     });
-    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+    if (!isInternal && (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status))) {
       return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
     }
 
@@ -115,11 +117,12 @@ export async function DELETE (request: Request,
         return NextResponse.json({ error: "Organization ID is missing." }, { status: 400 });
         }
 
+        const isInternal = await checkInternalAccount();
         const sub = await prisma.subscription.findUnique({
-            where: { orgId },
+          where: { orgId },
         });
-        if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
-            return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+        if (!isInternal && (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status))) {
+          return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
         }
 
         // 2. Fetch the existing invitation

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { duplicateMatterFlow } from "@/lib/data";
 import { getCurrentOrg } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
+import { checkInternalAccount } from "@/lib/check-internal-account";
 
 /** POST /api/matterflows/[id]/duplicate — Create an exact copy of a MatterFlow template */
 export async function POST(
@@ -12,10 +13,11 @@ export async function POST(
   try {
     const { orgId } = await getCurrentOrg(); // Tenant Check
         
+    const isInternal = await checkInternalAccount();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },
     });
-    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+    if (!isInternal && (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status))) {
       return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
     }
 

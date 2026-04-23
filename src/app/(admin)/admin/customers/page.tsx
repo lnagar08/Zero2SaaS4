@@ -1,8 +1,34 @@
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/require-superadmin";
+import Link from "next/link";
+import ExtendTrialWrapper from "@/components/admin/ExtendTrialWrapper";
+import InternalConvertWrapper from "@/components/admin/InternalConvertWrapper";
 
-export default async function CustomersPage() {
+export default async function CustomersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ extendId?: string, internalId?: string }>;
+}) {
+  const { extendId, internalId } = await searchParams;
+
   await requireSuperAdmin();
+  let selectedTrialEnd = null;
+  if (extendId) {
+    const org = await prisma.organization.findUnique({
+      where: { id: extendId },
+      include: { subscription: { select: { trialEnd: true } } }
+    });
+    selectedTrialEnd = org?.subscription?.trialEnd;
+  }
+
+  let currentInternalStatus = false;
+  if (internalId) {
+    const org = await prisma.organization.findUnique({
+      where: { id: internalId },
+      select: { isInternal: true }
+    });
+    currentInternalStatus = org?.isInternal || false;
+  }
 
   const orgsData = await prisma.organization.findMany({
     orderBy: { createdAt: "desc" },
@@ -49,17 +75,69 @@ export default async function CustomersPage() {
                 <td style={{padding:"14px 20px",color:"#475569"}}>{org._count.users}</td>
                 <td style={{padding:"14px 20px",fontSize:13}}>{org.subscription?.status || "None"}</td>
                 <td style={{padding:"14px 20px"}}>{org.plan ? `${org.plan.name} - $${(org.plan.priceCents)}` : "—"}</td>
-                <td style={{padding:"14px 20px"}}>{org.subscription?.currentPeriodEnd ? `${org.subscription.currentPeriodEnd.toLocaleDateString('en-US', {
-                  day: "numeric",
-                  month: "short",
-                  year: "2-digit"
-                })}` : "—"}</td>
-                <td style={{padding:"14px 20px"}}><a href={"/admin/customers/"+org.id} style={{color:"#6366f1",fontSize:14}}>View →</a></td>
+                <td style={{padding:"14px 20px"}}>
+
+                  {(() => {
+                    const sub = org.subscription;
+                    if (!sub) return "—";
+                    const displayDate = sub.status === "TRIALING" ? sub.trialEnd : sub.currentPeriodEnd;
+
+                    if (!displayDate) return "—";
+
+                    return displayDate.toLocaleDateString('en-US', {
+                      day: "numeric",
+                      month: "short",
+                      year: "2-digit"
+                    });
+                  })()}
+                
+                </td>
+                
+                <td style={{padding:"14px 20px"}}>
+                  <div className="flex items-center gap-4">
+                    {/* Internal Account Button */}
+                    {!org.subscription && (
+                      <Link 
+                        href={`?internalId=${org.id}`}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          org.isInternal 
+                            ? "bg-purple-50 text-purple-700 border-purple-100" 
+                            : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                        }`}
+                      >
+                        {org.isInternal ? "Internal Account" : "Convert to Internal"}
+                      </Link>
+                    )}
+
+                    {org.subscription?.status === "TRIALING" && (
+                      <Link 
+                        href={`?extendId=${org.id}`} 
+                        className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg border border-blue-100 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-200"
+                      >
+                        Extend Trial
+                      </Link>
+                    )}
+
+                    <a href={"/admin/customers/"+org.id} style={{color:"#6366f1",fontSize:14}}>View →</a>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Extend Trial Modal */}
+      {extendId && (
+        <ExtendTrialWrapper orgId={extendId} currentTrialEnd={selectedTrialEnd} />
+      )}
+
+      {internalId && (
+      <InternalConvertWrapper 
+        orgId={internalId} 
+        initialStatus={currentInternalStatus} 
+      />
+    )}
     </div>
   );
 }

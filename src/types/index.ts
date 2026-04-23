@@ -46,6 +46,7 @@ export interface FlowStage {
   name: string;
   order: number;
   /** Default duration in business days for this stage */
+  expectedDurationDays: number;
   defaultDurationDays?: number;
   steps: FlowStep[];
   createdAt: string;
@@ -143,11 +144,13 @@ export interface FlowHealthResult {
   /** Overall progress 0-100 */
   progressPercent: number;
   /** Steps summary */
+  stepWarnings: number;
   totalSteps: number;
   completedSteps: number;
   overdueSteps: number;
   dueSoonSteps: number;
   /** Current stage info */
+  stepWarningLevel?: string;
   currentStageName?: string;
   currentStageIndex?: number;
   totalStages: number;
@@ -161,6 +164,8 @@ export interface FlowHealthResult {
 export interface FlowControls {
   id: string;
   firmId: string;
+  /** "step" = any overdue step changes matter status. "stage" = only stage deadline changes status. */
+  healthEvaluation: "step" | "stage";
   /** Days before due date to flag as "due soon" → At Flow Risk */
   dueSoonWindowDays: number;
   /** Days in stage before "At Flow Risk" (secondary trigger) */
@@ -168,8 +173,8 @@ export interface FlowControls {
   /** Grace period days after stage start before tracking begins */
   graceWindowDays: number;
   /** Flow Breakdown conditions — at least one must be enabled */
-  outOfFlowThresholdDays: number;
-  flowBreakdownThresholdDays: number;
+  outOfFlowThresholdDays?: number; 
+  flowBreakdownThresholdDays?: number;
   breakdownOnPastDue: boolean;
   breakdownOnInactivity: boolean;
   breakdownInactivityDays: number;

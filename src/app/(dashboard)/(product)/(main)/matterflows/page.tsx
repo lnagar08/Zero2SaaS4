@@ -31,7 +31,6 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import type { MatterFlow } from "@/types";
-import { toast } from "sonner";
 
 export default function MatterFlowsPage() {
   const router = useRouter();
@@ -66,15 +65,9 @@ export default function MatterFlowsPage() {
     setDuplicating(flowId);
     try {
       const res = await fetch(`/api/matterflows/${flowId}/duplicate`, { method: "POST" });
-      if (!res.ok) {
-        const errorData = await res.json();
-        toast.error(errorData.error || "Save failed");
-        return;
-      }
       const newFlow = await res.json();
       if (newFlow.id) router.push(`/matterflows/${newFlow.id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
       console.error("Failed to duplicate:", err);
       setDuplicating(null);
     }
@@ -86,17 +79,9 @@ export default function MatterFlowsPage() {
     e.stopPropagation();
     try {
       const res = await fetch(`/api/matterflows/${flow.id}/apply`);
-      if (!res.ok) {
-        const errorData = await res.json();
-        toast.error(errorData.error || "Save failed");
-        return;
-      }
       const data = await res.json();
       setDeleteAffectedCount(data.count || 0);
-    } catch(err) { 
-      toast.error(err instanceof Error ? err.message : "Save failed");
-      setDeleteAffectedCount(0); 
-    }
+    } catch { setDeleteAffectedCount(0); }
     setDeleteReassignTo("");
     setDeleteTarget(flow);
   };
@@ -112,16 +97,10 @@ export default function MatterFlowsPage() {
       } else {
         url += `?orphan=true`;
       }
-      const res = await fetch(url, { method: "DELETE" });
-      if (!res.ok) {
-        const errorData = await res.json();
-        toast.error(errorData.error || "Save failed");
-        return;
-      }
+      await fetch(url, { method: "DELETE" });
       setDeleteTarget(null);
       fetchFlows();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
       console.error("Failed to delete:", err);
     } finally {
       setDeleting(false);
@@ -133,16 +112,10 @@ export default function MatterFlowsPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/matterflows/${deleteTarget.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const errorData = await res.json();
-        toast.error(errorData.error || "Save failed");
-        return;
-      }
+      await fetch(`/api/matterflows/${deleteTarget.id}`, { method: "DELETE" });
       setDeleteTarget(null);
       fetchFlows();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
       console.error("Failed to delete:", err);
     } finally {
       setDeleting(false);
@@ -235,11 +208,24 @@ export default function MatterFlowsPage() {
                   <Workflow className="w-5 h-5 text-[var(--color-mf-600)]" />
                 </div>
                 <div className="flex items-center gap-2">
-                  {flow.isDefault && (
-                    <span className="flex items-center gap-1 text-[12px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-[5px]">
-                      <Star className="w-3 h-3" /> Default
-                    </span>
-                  )}
+                  <button
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      await fetch(`/api/matterflows/${flow.id}/default`, { method: "POST" });
+                      fetchFlows();
+                    }}
+                    className={clsx(
+                      "flex items-center gap-1 text-[12px] font-medium px-2 py-0.5 rounded-[5px] cursor-pointer border-none transition-colors",
+                      flow.isDefault
+                        ? "text-amber-600 bg-amber-50"
+                        : "text-[var(--color-text-muted)] bg-transparent hover:text-amber-500 hover:bg-amber-50/50"
+                    )}
+                    title={flow.isDefault ? "Remove as default" : "Set as default"}
+                  >
+                    <Star className="w-3 h-3" style={flow.isDefault ? { fill: "currentColor" } : {}} />
+                    {flow.isDefault && "Default"}
+                  </button>
                   {flow.isPublic && (
                     <span className="text-[12px] font-medium text-[#059669] bg-[#ECFDF5] px-2 py-0.5 rounded-[5px]">
                       Published
@@ -357,14 +343,7 @@ export default function MatterFlowsPage() {
                           method: "POST", headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ name: lib.name, description: lib.description, isDefault: false, stages: [] }),
                         });
-                        if(!res.ok){
-                          const errorData = await res.json();
-                          toast.error(errorData.error || "Save failed");
-                          return;
-                        }
-                        if (res.ok) { 
-                          setImportedName(lib.name); fetchFlows(); 
-                        }
+                        if (res.ok) { setImportedName(lib.name); fetchFlows(); }
                       }}
                       className="text-[12px] font-semibold px-3 py-1.5 rounded-[8px] cursor-pointer transition-colors border-none hover:opacity-90"
                       style={{ background: "var(--color-mf-500)", color: "white" }}>

@@ -1,4 +1,3 @@
-import { getCurrentOrg } from "@/lib/tenant";
 /**
  * HOME PAGE — Unified dashboard + matter list
  *
@@ -13,7 +12,7 @@ import { getCurrentOrg } from "@/lib/tenant";
  *   Wire this to the auth session role check.
  * - Summary counts: These come from the dashboard API which computes health for
  *   all active matters using the shared flow engine. In SaaS, this is already
- *   tenant-scoped via getCurrentOrg().orgId.
+ *   tenant-scoped via getCurrentFirmId().
  * - Create dialog: References MatterFlows and Users, both tenant-scoped.
  */
 "use client";
@@ -58,8 +57,7 @@ import type {
   MatterStepProgress,
 } from "@/types";
 import { FLOW_STATUS_LABELS } from "@/types";
-import { differenceInCalendarDays, parseISO, isValid, format } from "date-fns";
-import { toast } from "sonner";
+import { differenceInCalendarDays, parseISO, isValid } from "date-fns";
 
 // ============================================================
 // Filter / sort types
@@ -92,7 +90,7 @@ export default function HomePage() {
   const [assigneeFilter, setAssigneeFilter] = useState("");
   const [sortField, setSortFieldState] = useState<SortField>("status");
   const [sortDir, setSortDirState] = useState<SortDir>("desc");
-  
+
   // Load persisted sort on mount
   useEffect(() => {
     try {
@@ -110,36 +108,28 @@ export default function HomePage() {
   const [showImport, setShowImport] = useState(false);
 
   const fetchData = useCallback(async () => {
-  try {
-    const [dashRes, usersRes, flowsRes] = await Promise.all([
-      fetch("/api/dashboard"),
-      fetch("/api/users"),
-      fetch("/api/matterflows"),
-    ]);
-
-    const dashData = await dashRes.json();
-    const usersData = await usersRes.json();
-    const flowsData = await flowsRes.json();
-
-    setData(dashData);
-    setUsers(Array.isArray(usersData) ? usersData : []); 
-    setFlows(Array.isArray(flowsData) ? flowsData : []);
-
-  } catch (err) {
-    console.error("Failed to load:", err);
-    setUsers([]); 
-  } finally {
-    setLoading(false);
-  }
-}, []);
-
+    try {
+      const [dashRes, usersRes, flowsRes] = await Promise.all([
+        fetch("/api/dashboard"),
+        fetch("/api/users"),
+        fetch("/api/matterflows"),
+      ]);
+      setData(await dashRes.json());
+      setUsers(await usersRes.json());
+      setFlows(await flowsRes.json());
+    } catch (err) {
+      console.error("Failed to load:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   /** Filtered + sorted matter list */
   const matters = useMemo(() => {
     if (!data) return [];
-    let list = data.matters;
+    let list = Array.isArray(data.matters) ? data.matters : [];
     if (filter !== "all") list = list.filter((m) => m.health.status === filter);
     if (search) {
       const q = search.toLowerCase();
@@ -150,7 +140,7 @@ export default function HomePage() {
       );
     }
     if (assigneeFilter) list = list.filter((m) => m.assignedUserId === assigneeFilter);
-    return [...list].sort((a, b) => {
+    return [...(Array.isArray(list) ? list : [])].sort((a, b) => {
       // Compute cmp so that POSITIVE means "a should come AFTER b in desc order"
       // Then: desc returns -cmp (a before b when cmp is negative = a is "bigger/more critical")
       // Simpler: just compute descending order directly, then flip for asc
@@ -539,11 +529,13 @@ function MatterRow({ matter }: { matter: MatterWithHealth }) {
         "transition-all duration-150 cursor-pointer"
       )}
     >
-      {/* Status dot with glow ring */}
+      {/* Status dot with glow ring — amber/red outer ring for step warnings */}
       <div className="w-[14px] h-[14px] rounded-full shrink-0"
         style={{
           background: STATUS_DOT_COLORS[h.status] || "#94A3B8",
-          boxShadow: `0 0 0 4px ${STATUS_GLOW_COLORS[h.status] || "rgba(148,163,184,0.15)"}`,
+          boxShadow: h.stepWarnings > 0
+            ? `0 0 0 3px ${STATUS_GLOW_COLORS[h.status] || "rgba(148,163,184,0.15)"}, 0 0 0 6px ${h.stepWarningLevel === "overdue" ? "rgba(239,68,68,0.3)" : "rgba(245,158,11,0.3)"}`
+            : `0 0 0 4px ${STATUS_GLOW_COLORS[h.status] || "rgba(148,163,184,0.15)"}`,
         }}
       />
 
@@ -572,6 +564,12 @@ function MatterRow({ matter }: { matter: MatterWithHealth }) {
             style={{ background: STATUS_BADGE_BG[h.status] || "#F5F5F7", color: STATUS_BADGE_TEXT[h.status] || "#666" }}>
             {FLOW_STATUS_LABELS[h.status]}
           </span>
+          {h.stepWarnings > 0 && (
+            <span className="text-[12px] font-semibold px-2 py-[2px] rounded-[4px]"
+              style={{ background: h.stepWarningLevel === "overdue" ? "#FEF2F2" : "#FFFBEB", color: h.stepWarningLevel === "overdue" ? "#991B1B" : "#92400E" }}>
+              {h.stepWarnings} step watch
+            </span>
+          )}
           {nextStep ? (
             <span className="text-[12px] font-medium text-[#666]">
               Next: <strong className="text-[#333] font-semibold">{nextStep.stepName}</strong>
@@ -618,15 +616,12 @@ function MatterRow({ matter }: { matter: MatterWithHealth }) {
             {viewSteps.map((step) => {
               const isWithClient = step.withClient && !step.isCompleted;
               const dueDate = step.manualDueDate || step.dueDate;
-              const formattedDueDate = dueDate 
-  ? format(typeof dueDate === 'string' ? parseISO(dueDate) : dueDate, "MMM d, yyyy")
-  : null;
               const tooltip = step.isCompleted
                 ? `${step.stepName} ✓`
                 : isWithClient
                   ? `${step.stepName} — With client`
                   : dueDate
-                    ? `${step.stepName} — Due ${formattedDueDate}`
+                    ? `${step.stepName} — Due ${dueDate}`
                     : step.stepName;
               return (
                 <div key={step.id} className="flex-1 flex flex-col group/tip relative" style={{ height: "100%", justifyContent: isWithClient ? "flex-start" : "flex-end" }}>
@@ -785,8 +780,7 @@ function CreateMatterDialog({
   // Compute due date warning
   const selectedFlow = flows.find((f) => f.id === form.matterFlowId);
   const totalFlowDays = selectedFlow
-    //? selectedFlow.stages.reduce((sum, s) => sum + (s.expectedDurationDays || 0), 0)
-    ? selectedFlow.stages.reduce((sum, s) => sum + (s.defaultDurationDays || 0), 0)
+    ? selectedFlow.stages.reduce((sum, s) => sum + (s.expectedDurationDays || 0), 0)
     : 0;
 
   let dueDateWarning = "";
@@ -799,7 +793,7 @@ function CreateMatterDialog({
       dueDateWarning = `This due date is ${deficit} day${deficit !== 1 ? "s" : ""} before the workflow would normally complete (${totalFlowDays} days). Steps may need to be completed faster than their default durations.`;
     }
   }
- 
+
   const handleSubmit = async () => {
     if (!form.name || !form.clientName || !form.matterFlowId) return;
     setSaving(true);
@@ -812,18 +806,9 @@ function CreateMatterDialog({
           amountPaid: form.amountPaid ? parseFloat(form.amountPaid) : 0,
         }),
       });
-      if (!res.ok) {
-        const errorData = await res.json();
-        toast.error(errorData.error || "Save failed");
-        return;
-      }
-
       const created = await res.json();
       onCreated(created?.id);
-    } catch (err) { 
-      toast.error(err instanceof Error ? err.message : "Save failed");
-      console.error("Failed to create matter:", err); 
-    }
+    } catch (err) { console.error("Failed to create matter:", err); }
     finally { setSaving(false); }
   };
 
@@ -1030,7 +1015,7 @@ function ImportCSVDialog({ flows, users, onClose, onImported }: {
     for (const row of parsedRows) {
       if (row.errors.length > 0 || !row.matchedFlowId) { errs++; continue; }
       try {
-        const res = await fetch("/api/matters", {
+        await fetch("/api/matters", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: row.mapped.name, clientName: row.mapped.clientName,
@@ -1040,16 +1025,8 @@ function ImportCSVDialog({ flows, users, onClose, onImported }: {
             startDate: row.mapped.startDate || undefined,
           }),
         });
-        if (!res.ok) {
-          const errorData = await res.json();
-          toast.error(errorData.error || "Save failed");
-          return;
-        }
         imported++;
-      } catch(err) { 
-        toast.error(err instanceof Error ? err.message : "Save failed");
-        errs++; 
-      }
+      } catch { errs++; }
     }
     setImportedCount(imported);
     setImportErrors(errs);

@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth-options";
 import { getCurrentOrg } from "@/lib/tenant";
 import { sendMail } from '@/lib/send-mail';
 import { permission } from "process";
+import { checkInternalAccount } from "@/lib/check-internal-account";
 
 export async function GET() {
   const t = await getCurrentOrg();
@@ -33,16 +34,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Organization ID is missing." }, { status: 400 });
     }
 
-    const sub = await prisma.subscription.findUnique({
-      where: { orgId },
-    });
-    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
-      return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
-    }
+    const isInternal = await checkInternalAccount();
 
-    const plan = await prisma.plan.findUnique({ where: { stripePriceId: sub.stripePriceId } });
-    if (plan?.allowTeamUser && plan.allowTeamUser <= await prisma.invitation.count({ where: { orgId } })) {
-      return NextResponse.json({ error: "Team member limit reached for your subscription plan." }, { status: 403 });
+    if (!isInternal) {
+      const sub = await prisma.subscription.findUnique({
+        where: { orgId },
+      });
+      if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+        return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
+      }
+
+      const isTrialing = sub.status === "TRIALING"; 
+      if(!isTrialing){
+        const plan = await prisma.plan.findUnique({ where: { stripePriceId: sub.stripePriceId } });
+        if (plan?.allowTeamUser && plan.allowTeamUser <= await prisma.invitation.count({ where: { orgId } })) {
+          return NextResponse.json({ error: "Team member limit reached for your subscription plan." }, { status: 403 });
+        }
+      }
+      
     }
 
     const body = await req.json();

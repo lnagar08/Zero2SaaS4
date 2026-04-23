@@ -1,3 +1,4 @@
+import { checkInternalAccount } from "@/lib/check-internal-account";
 import { hasPermission } from "@/lib/check-permission";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrg } from "@/lib/tenant";
@@ -19,10 +20,11 @@ export async function PATCH(
     const { id: matterId } = await params; // Matter ID
     const { orgId } = await getCurrentOrg(); // Tenant Check
     
+    const isInternal = await checkInternalAccount();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },
     });
-    if (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status)) {
+    if (!isInternal && (!sub || ["PAST_DUE", "UNPAID", "CANCELED"].includes(sub.status))) {
       return NextResponse.json({ error: "Subscription inactive. Read-only access." }, { status: 403 });
     }
 

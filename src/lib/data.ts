@@ -973,6 +973,7 @@ export async function getFlowControls(): Promise<FlowControls> {
   return {
     id: row.id,
     firmId: row.orgId,
+    healthEvaluation: (row.healthEvaluation || "step") as "step" | "stage",
     dueSoonWindowDays: row.dueSoonWindowDays ?? 2,
     stageRiskThresholdDays: row.stageRiskThresholdDays ?? 14,
     graceWindowDays: row.graceWindowDays ?? 2,
@@ -993,12 +994,12 @@ export async function updateFlowControls(
   data: Partial<Omit<FlowControls, "id" | "firmId" | "createdAt" | "updatedAt">>
 ): Promise<FlowControls> {
   const { orgId } = await getCurrentOrg();
-
   await prisma.flowControl.update({
     where: { 
       orgId: orgId 
     },
     data: {
+      healthEvaluation: data.healthEvaluation ?? "step",
       dueSoonWindowDays: data.dueSoonWindowDays,
       stageRiskThresholdDays: data.stageRiskThresholdDays,
       graceWindowDays: data.graceWindowDays,
@@ -1062,6 +1063,7 @@ function mapFlowStage(row: any): Omit<FlowStage, "steps"> {
     matterFlowId: row.matterFlowId,
     name: row.name,
     order: row.sortOrder,
+    expectedDurationDays: row.expectedDurationDays,
     defaultDurationDays: row.defaultDurationDays ?? undefined,
     createdAt: row.createdAt,
   };
