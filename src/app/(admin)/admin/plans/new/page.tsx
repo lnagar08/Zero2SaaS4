@@ -1,11 +1,13 @@
 "use client";
+import { useRouter } from 'next/navigation';
 import { useState } from "react";
 import { toast } from "sonner";
-
+import Link from 'next/link';
 export default function NewPlansPage() {
 
   const [loading, setLoading] = useState(false);
-
+  const router = useRouter();
+  
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -36,7 +38,7 @@ export default function NewPlansPage() {
         }
         toast.success("Plan created successfully");
         setTimeout(() => {
-            window.location.href = "/admin/plans";
+            router.push("/admin/plans");
         }, 2000);
     } catch (error) {
         toast.error(error instanceof Error ? error.message : "Save failed");
@@ -49,12 +51,12 @@ export default function NewPlansPage() {
     <div>
       <div className="flex items-center justify-between mb-2">
   <h1 className="text-[32px] font-bold">Create New Plan</h1>
-  <a 
+  <Link
     href="/admin/plans" 
     className="text-indigo-500 text-sm no-underline hover:underline"
   >
     ← Back
-  </a>
+  </Link>
   </div>
       
       <div className="max-w-full mx-auto p-6 bg-white shadow-md rounded-xl border border-gray-100">

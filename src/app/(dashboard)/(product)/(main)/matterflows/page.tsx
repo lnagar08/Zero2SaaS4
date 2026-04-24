@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import type { MatterFlow } from "@/types";
+import { toast } from "sonner";
 
 export default function MatterFlowsPage() {
   const router = useRouter();
@@ -66,9 +67,15 @@ export default function MatterFlowsPage() {
     try {
       const res = await fetch(`/api/matterflows/${flowId}/duplicate`, { method: "POST" });
       const newFlow = await res.json();
+      if (!res.ok) {
+        toast.error(newFlow.error || "Save failed");
+        return;
+      }
+      
       if (newFlow.id) router.push(`/matterflows/${newFlow.id}`);
     } catch (err) {
       console.error("Failed to duplicate:", err);
+      toast.error(err instanceof Error ? err.message : "Save failed");
       setDuplicating(null);
     }
   };
@@ -80,6 +87,10 @@ export default function MatterFlowsPage() {
     try {
       const res = await fetch(`/api/matterflows/${flow.id}/apply`);
       const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Save failed");
+        return;
+      }
       setDeleteAffectedCount(data.count || 0);
     } catch { setDeleteAffectedCount(0); }
     setDeleteReassignTo("");
@@ -112,11 +123,17 @@ export default function MatterFlowsPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await fetch(`/api/matterflows/${deleteTarget.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/matterflows/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to delete");
+        return;
+      }
       setDeleteTarget(null);
       fetchFlows();
     } catch (err) {
       console.error("Failed to delete:", err);
+      toast.error(err instanceof Error ? err.message : "Save failed");
     } finally {
       setDeleting(false);
     }
@@ -212,7 +229,11 @@ export default function MatterFlowsPage() {
                     onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      await fetch(`/api/matterflows/${flow.id}/default`, { method: "POST" });
+                      const res = await fetch(`/api/matterflows/${flow.id}/default`, { method: "POST" });
+                      if (!res.ok) {
+                        const data = await res.json();
+                        toast.error(data.error || "Failed to update default workflow");
+                      }
                       fetchFlows();
                     }}
                     className={clsx(
@@ -343,6 +364,11 @@ export default function MatterFlowsPage() {
                           method: "POST", headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ name: lib.name, description: lib.description, isDefault: false, stages: [] }),
                         });
+                        const created = await res.json();
+                        if (!res.ok) {
+                          toast.error(created.error || "Save failed");
+                          return;
+                        }
                         if (res.ok) { setImportedName(lib.name); fetchFlows(); }
                       }}
                       className="text-[12px] font-semibold px-3 py-1.5 rounded-[8px] cursor-pointer transition-colors border-none hover:opacity-90"

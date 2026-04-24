@@ -578,7 +578,7 @@ export async function toggleStepCompletion(
   if (!currentStep) throw new Error("Step progress not found");
 
   const isCompleting = !currentStep.isCompleted;
-  const completedAt = isCompleting ? new Date() : null; // .toISOString() की जगह Date ऑब्जेक्ट
+  const completedAt = isCompleting ? new Date() : null; 
 
   let stageAdvanced = false;
 
@@ -856,9 +856,10 @@ export async function applyMatterFlowToExistingMatters(matterFlowId: string): Pr
 
   let updatedCount = 0;
 
-  for (const row of matterRows) {
+  //for (const row of matterRows) {
+  await Promise.all(matterRows.map(async (row) => {
     const matter = await getMatter(row.id);
-    if (!matter) continue;
+    if (!matter) return;
 
     await prisma.$transaction(async (tx) => {
       for (const templateStage of flow.stages) {
@@ -939,7 +940,7 @@ export async function applyMatterFlowToExistingMatters(matterFlowId: string): Pr
     });
 
     updatedCount++;
-  }
+  }));
 
   return updatedCount;
 }

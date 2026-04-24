@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/require-superadmin";
 import { notFound } from "next/navigation";
-
+import Link from 'next/link';
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requireSuperAdmin();
   const { id } = await params;
@@ -23,7 +23,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
   return (
     <div>
-      <a href="/admin/customers" style={{color:"#6366f1",fontSize:14,textDecoration:"none"}}>← All Customers</a>
+      <Link href="/admin/customers" style={{color:"#6366f1",fontSize:14,textDecoration:"none"}}>← All Customers</Link>
       <h1 style={{fontSize:32,fontWeight:700,margin:"12px 0 8px"}}>{org.name}</h1>
       <p style={{color:"#64748b",marginBottom:32}}>Slug: {org.slug} · Created: {org.createdAt.toLocaleDateString()}</p>
 

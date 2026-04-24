@@ -58,6 +58,7 @@ import type {
 } from "@/types";
 import { FLOW_STATUS_LABELS } from "@/types";
 import { differenceInCalendarDays, parseISO, isValid } from "date-fns";
+import { toast } from "sonner";
 
 // ============================================================
 // Filter / sort types
@@ -806,9 +807,18 @@ function CreateMatterDialog({
           amountPaid: form.amountPaid ? parseFloat(form.amountPaid) : 0,
         }),
       });
+      
       const created = await res.json();
+      if (!res.ok) {
+        toast.error(created.error || "Save failed");
+        return;
+      }
+      
       onCreated(created?.id);
-    } catch (err) { console.error("Failed to create matter:", err); }
+    } catch (err) { 
+      console.error("Failed to create matter:", err); 
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    }
     finally { setSaving(false); }
   };
 

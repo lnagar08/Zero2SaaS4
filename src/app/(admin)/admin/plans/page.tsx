@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/require-superadmin";
 import { toast } from "sonner";
+import Link from 'next/link';
 import PlanDelete from "@/components/admin/PlanDelete";
 
 
@@ -16,12 +17,12 @@ export default async function PlansPage() {
     <div>
     <div className="flex items-center justify-between mb-2">
   <h1 className="text-[32px] font-bold">All Plans</h1>
-  <a 
+  <Link
     href="/admin/plans/new" 
     className="text-indigo-500 text-sm no-underline hover:underline"
   >
     + Create New Plan
-  </a>
+  </Link>
   </div>
       <p style={{color:"#64748b",marginBottom:32}}>{plans.length} plans</p>
       <div style={{background:"white",borderRadius:16,overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
@@ -41,7 +42,7 @@ export default async function PlansPage() {
                 <td style={{padding:"14px 20px",color:"#475569"}}>{plan.allowTeamUser}</td>
                 <td style={{padding:"14px 20px",color:"#475569"}}>{plan.allowMatter}</td>
                 <td style={{padding:"14px 20px"}}>
-                  <a href={`/admin/plans/${plan.id}`} style={{color:"#6366f1",fontSize:14}}>Edit</a>
+                  <Link href={`/admin/plans/${plan.id}`} style={{color:"#6366f1",fontSize:14}}>Edit</Link>
                     <PlanDelete id={plan.id} />
                 </td>
               </tr>

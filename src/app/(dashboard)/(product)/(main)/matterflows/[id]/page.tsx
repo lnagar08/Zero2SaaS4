@@ -84,6 +84,10 @@ export default function MatterFlowEditorPage() {
       try {
         const res = await fetch(`/api/matterflows/${flowId}/apply`);
         const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.error || "Save failed");
+          return;
+        }
         setAffectedMattersCount(data.count || 0);
       } catch { setAffectedMattersCount(0); }
       setShowSaveDialog(true);
@@ -126,11 +130,23 @@ export default function MatterFlowEditorPage() {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(flow),
       });
       const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error || "Failed to apply changes");
+        return;
+      }
       setFlow(result);
       // Then apply to existing matters
-      await fetch(`/api/matterflows/${flowId}/apply`, { method: "POST" });
+      const applyRes = await fetch(`/api/matterflows/${flowId}/apply`, { method: "POST" });
+      if (!applyRes.ok) {
+        const applyData = await applyRes.json();
+        toast.error(applyData.error || "Failed to apply changes");
+        return;
+      }
       setSaved(true); setTimeout(() => setSaved(false), 2000);
-    } catch (err) { console.error("Save + apply failed:", err); }
+    } catch (err) { 
+      toast.error(err instanceof Error ? err.message : "Save failed");
+      console.error("Save + apply failed:", err); 
+    }
     finally { setSaving(false); }
   };
 
@@ -145,9 +161,16 @@ export default function MatterFlowEditorPage() {
         body: JSON.stringify({ ...flow, id: undefined, isDefault: false }),
       });
       const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error || "Save failed");
+        return;
+      }
       setSaved(true); setTimeout(() => setSaved(false), 2000);
       if (result.id) router.push(`/matterflows/${result.id}`);
-    } catch (err) { console.error("Save as new failed:", err); }
+    } catch (err) { 
+      console.error("Save as new failed:", err); 
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    }
     finally { setSaving(false); }
   };
 
@@ -199,6 +222,10 @@ export default function MatterFlowEditorPage() {
                 try {
                   const res = await fetch(`/api/matterflows/${flowId}/publish`, { method: "POST" });
                   const data = await res.json();
+                  if (!res.ok) {
+                    toast.error(data.error || "Save failed");
+                    return;
+                  }
                   setFlow({ ...flow, isPublic: data.isPublic });
                 } finally { setPublishing(false); }
               }}
@@ -231,7 +258,11 @@ export default function MatterFlowEditorPage() {
           const checked = e.target.checked;
           updateFlow({ isDefault: checked });
           if (!isNew) {
-            await fetch(`/api/matterflows/${flowId}/default`, { method: "POST" });
+            const res = await fetch(`/api/matterflows/${flowId}/default`, { method: "POST" });
+            if (!res.ok) {
+              const data = await res.json();
+              toast.error(data.error || "Failed to update default workflow");
+            }
           }
         }} className="w-[18px] h-[18px] rounded" /><span className="text-[14px] text-[var(--color-text-secondary)]">Set as default workflow for new matters</span></label>
       </div>

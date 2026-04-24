@@ -2,7 +2,7 @@
 import { notFound } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { toast } from "sonner";
-
+import Link from 'next/link';
 export default function UpdatePlanPage({ params }: { params: Promise<{ id: string }> }) {
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +66,7 @@ export default function UpdatePlanPage({ params }: { params: Promise<{ id: strin
     <div className="max-w-4xl mx-auto p-4">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-[32px] font-bold">Update Plan</h1>
-        <a href="/admin/plans" className="text-indigo-500 text-sm hover:underline">← Back</a>
+        <Link href="/admin/plans" className="text-indigo-500 text-sm hover:underline">← Back</Link>
       </div>
       
       <div className="p-6 bg-white shadow-md rounded-xl border border-gray-100">

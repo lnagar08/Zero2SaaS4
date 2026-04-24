@@ -118,7 +118,7 @@ export default async function CustomersPage({
                       </Link>
                     )}
 
-                    <a href={"/admin/customers/"+org.id} style={{color:"#6366f1",fontSize:14}}>View →</a>
+                    <Link href={"/admin/customers/"+org.id} style={{color:"#6366f1",fontSize:14}}>View →</Link>
                   </div>
                 </td>
               </tr>

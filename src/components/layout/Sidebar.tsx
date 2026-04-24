@@ -29,6 +29,24 @@ export function Sidebar() {
     }
     return true;
   });
+  const userName = session?.user?.name || "User";
+
+  function getInitials(name: string) {
+    if (!name) return "";
+
+    const parts = name.trim().split(/\s+/);
+    
+    if (parts.length === 1) {
+      return parts[0].substring(0, 2).toUpperCase();
+    } else {
+      const firstInitial = parts[0][0];
+      const lastInitial = parts[parts.length - 1][0];
+      return (firstInitial + lastInitial).toUpperCase();
+    }
+  }
+  const userInitials = getInitials(userName);
+  const userRRole = session?.user?.role || "USER";
+
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[240px] flex flex-col z-30"
       style={{ background: "#1E2028" }}>
@@ -69,10 +87,10 @@ export function Sidebar() {
           style={{ background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)" }}>
           <div className="flex items-center gap-[9px]">
             <div className="w-[32px] h-[32px] rounded-full flex items-center justify-center text-[12px] font-semibold text-white"
-              style={{ background: "linear-gradient(135deg, #6366F1, #A855F7)" }}>EW</div>
+              style={{ background: "linear-gradient(135deg, #6366F1, #A855F7)" }}>{userInitials}</div>
             <div>
-              <p className="text-[13px] font-medium m-0" style={{ color: "rgba(255,255,255,0.85)" }}>Erik Weingold</p>
-              <p className="text-[11px] m-0" style={{ color: "rgba(255,255,255,0.4)" }}>PPM Lawyers</p>
+              <p className="text-[13px] font-medium m-0" style={{ color: "rgba(255,255,255,0.85)" }}>{userName}</p>
+              <p className="text-[11px] m-0" style={{ color: "rgba(255,255,255,0.4)" }}>{userRRole}</p>
             </div>
           </div>
         </div>

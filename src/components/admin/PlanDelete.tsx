@@ -1,10 +1,11 @@
 "use client";
+import { useRouter } from 'next/navigation';
 import React from "react";
 import { toast } from "sonner";
 
 export default function PlanDelete({ id }: { id: string }) {
     const [loading, setLoading] = React.useState(false);
-
+    const router = useRouter();
     async function handleDelete() {
         if (!confirm("Are you sure you want to delete this plan? This action cannot be undone.")) return;
         
@@ -14,7 +15,7 @@ export default function PlanDelete({ id }: { id: string }) {
             if (res.ok) {
                 toast.success("Plan deleted successfully");
                 setTimeout(() => {
-                    window.location.reload();
+                    router.refresh();
                 }, 1000);
             } else {
                 const errorData = await res.json();
