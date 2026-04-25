@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { Resend } from 'resend';
+import { WelcomeEmail } from "@/emails/WelcomeEmail";
+const resend = new Resend(process.env.RESEND_API_KEY!);
+
 export async function POST(req: NextRequest) {
   try {
     const { firmName, name, email, password, token } = await req.json();
@@ -63,6 +67,13 @@ export async function POST(req: NextRequest) {
         
         return { orgId: org.id, user, org };
       }
+    });
+
+    await resend.emails.send({
+      from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
+      to: [email],
+      subject: 'Welcome to MatterGuardian! 🚀',
+      react: WelcomeEmail({ name: name || "Member" }),
     });
 
     return NextResponse.json({ success: true, orgId: result.orgId  });

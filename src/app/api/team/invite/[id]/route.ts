@@ -4,8 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth"; // Assuming you use NextAuth
 import { authOptions } from "@/lib/auth-options";
 import { getCurrentOrg } from "@/lib/tenant";
-import { sendMail } from '@/lib/send-mail';
+import { Resend } from 'resend';
+import { TeamInvitation } from '@/emails/TeamInvitation';
 import { checkInternalAccount } from "@/lib/check-internal-account";
+
+const resend = new Resend(process.env.RESEND_API_KEY!);
 
 export async function POST(
   req: Request,
@@ -48,27 +51,27 @@ export async function POST(
     // 6. Construct the signup link
     const inviteLink = `${process.env.NEXTAUTH_URL}/signup?token=${token}`;
 
-    const mailText = `
-        <div style="font-family: sans-serif; padding: 20px;">
-          <h2>Join Our Team</h2>
-          <p>You have been invited as an <strong>${existingInvitation.role}</strong>.</p>
-          <p>Click the button below to set up your account:</p>
-          <a href="${inviteLink}" style="background: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-            Accept Invitation
-          </a>
-          <p style="margin-top: 20px; font-size: 12px; color: #666;">
-            This link will expire in 24 hours.
-          </p>
-        </div>
-      `;
-    const response = await sendMail({
-      email: existingInvitation.email,
-      subject: "You've been invited to join the team",
-      text: mailText,
-      html: mailText,
+    const organization = await prisma.organization.findUnique({ where: { id: orgId } });
+    
+    const { data, error } = await resend.emails.send({
+      from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
+      to: [existingInvitation?.email],
+      subject: `Invitation to join ${organization?.name} on MatterGuardian`,
+      react: TeamInvitation({ 
+        invitedByEmail: existingInvitation?.email || "Team Member", 
+        role: existingInvitation?.role || "Member",
+        organization: organization?.name || "MatterGuardian",
+        inviteLink
+      }),
     });
 
-    if (response?.messageId) {
+    if (error || !data?.id) {
+      return NextResponse.json(
+        { error: error?.message || "Failed to send invitation email." }, 
+        { status: 400 }
+      );
+    }
+    if (data.id) {
         // Update the invitation with the new token and expiry
         await prisma.invitation.update({
           where: { id: id },

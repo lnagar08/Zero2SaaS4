@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
+import { Resend } from 'resend';
+import { SubscriptionSuccess } from '@/emails/SubscriptionSuccess';
+import { CardDeclined } from '@/emails/CardDeclined';
+import { SubscriptionCancelled } from '@/emails/SubscriptionCancelled';
+const resend = new Resend(process.env.RESEND_API_KEY!);
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature")!;
@@ -29,7 +35,6 @@ export async function POST(req: NextRequest) {
         where: { id: orgId },
         data: { hasUsedTrial: true }
       });
-
       break;
     }
     case "customer.subscription.updated": {
@@ -41,8 +46,8 @@ export async function POST(req: NextRequest) {
         data: { 
           status: (statusMap[sub.status] || "ACTIVE") as any, 
           stripePriceId: sub.items.data[0].price.id, 
-          currentPeriodStart: new Date(sub.current_period_start * 1000), 
-          currentPeriodEnd: new Date(sub.current_period_end * 1000), 
+          currentPeriodStart: new Date(sub.items.data[0].current_period_start * 1000), 
+          currentPeriodEnd: new Date(sub.items.data[0].current_period_end * 1000), 
           cancelAtPeriodEnd: sub.cancel_at_period_end || false, 
           trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null 
         } 
@@ -61,7 +66,7 @@ export async function POST(req: NextRequest) {
         console.error("OrgId missing in Stripe Metadata");
         break;
       }
-   
+      const customerEmail = invoice.customer_email || invoice.customer_name || "Customer";
         // 2. Save the transaction to Database
         await prisma.transaction.create({
           data: {
@@ -75,16 +80,57 @@ export async function POST(req: NextRequest) {
           },
         });
       
+        await resend.emails.send({
+          from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
+          to: [customerEmail],
+          subject: 'Payment Confirmed - MatterGuardian',
+          react: SubscriptionSuccess({ 
+            name: invoice.customer_name || invoice.customer_email, 
+            planName: invoice.lines.data[0]?.description || "Pro Plan", 
+            amount: `${(invoice.amount_paid / 100).toFixed(2)} ${invoice.currency.toUpperCase()}` 
+          }),
+        });
+
       break;
     }
     case "customer.subscription.deleted": {
       const sub = event.data.object as any;
       await prisma.subscription.updateMany({ where: { orgId: sub.metadata.orgId }, data: { status: "CANCELED" } });
+
+      const customer = await stripe.customers.retrieve(sub.customer as string) as any;
+      const customerEmail = customer.email;
+
+      if (customerEmail) {
+        await resend.emails.send({
+          from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
+          to: [customerEmail],
+          subject: 'Subscription Cancelled - MatterGuardian',
+          react: SubscriptionCancelled({ 
+            name: customerEmail, 
+            expiryDate: new Date(sub.items.data[0].current_period_end * 1000).toLocaleDateString() 
+          }),
+        });
+      }
+
       break;
     }
     case "invoice.payment_failed": {
       const invoice = event.data.object as any;
       if (invoice.subscription) { await prisma.subscription.updateMany({ where: { stripeSubscriptionId: invoice.subscription }, data: { status: "PAST_DUE" } }); }
+      const customerEmail = invoice.customer_email || invoice.customer_name || "Customer";
+      try {
+        await resend.emails.send({
+          from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
+          to: [customerEmail],
+          subject: 'Action Required: Your payment was declined',
+          react: CardDeclined({ 
+            name: customerEmail 
+          }),
+        });
+      } catch (emailError) {
+        console.error("Error sending card declined email:", emailError);
+      }
+
       break;
     }
   }
