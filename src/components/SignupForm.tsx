@@ -75,7 +75,7 @@ export default function SignupPage() {
         ) : ( 
           <div style={{textAlign:"center"}}>
           <h1 style={{fontSize:28,fontWeight:700,marginBottom:8,textAlign:"center"}}>Create your account</h1>
-          <p style={{textAlign:"center",fontSize:14,color:"#94a3b8",marginBottom:24}}>Start your free 14-day trial</p>
+          <p style={{textAlign:"center",fontSize:14,color:"#94a3b8",marginBottom:24}}>Start your free 30-day trial</p>
           </div>
          )}
           <div>

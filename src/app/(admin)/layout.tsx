@@ -1,10 +1,14 @@
 import { requireSuperAdmin } from "@/lib/require-superadmin";
 import { Toaster } from "sonner";
 import Link from 'next/link';
+import UserDropdown from "@/components/admin/UserDropdown";
+
 export default async function AdminLayout(
   { children }: 
-  { children: React.ReactNode }) {
-  await requireSuperAdmin();
+  { children: React.ReactNode }) { 
+  const user = await requireSuperAdmin();
+  const adminEmail = user || "admin@pro.com";
+
   return (
     <div style={{minHeight:"100vh",background:"#f8fafc"}}>
       <nav style={{background:"#0f172a",color:"white",padding:"12px 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -16,7 +20,7 @@ export default async function AdminLayout(
           <Link href="/admin/plans" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>Plans</Link>
           <Link href="/admin/transactions" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>Transactions History</Link>
         </div>
-        <Link href="/" style={{color:"#94a3b8",textDecoration:"none",fontSize:14}}>← Back to App</Link>
+        <UserDropdown email={adminEmail} />
       </nav>
       <div style={{maxWidth:1200,margin:"0 auto",padding:"32px 24px"}}>
         <Toaster position="top-right" richColors />

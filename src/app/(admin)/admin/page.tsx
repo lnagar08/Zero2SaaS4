@@ -6,7 +6,9 @@ export default async function AdminDashboard() {
 
   const [totalOrgs, totalUsers, activeSubs, trialSubs, pastDueSubs] = await Promise.all([
     prisma.organization.count(),
-    prisma.user.count(),
+    prisma.user.count({
+      where: { role: { not: "ADMIN" } }
+    }),
     prisma.subscription.count({ where: { status: "ACTIVE" } }),
     prisma.subscription.count({ where: { status: "TRIALING" } }),
     prisma.subscription.count({ where: { status: "PAST_DUE" } }),

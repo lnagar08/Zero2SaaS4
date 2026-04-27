@@ -73,7 +73,7 @@ export default async function CustomersPage({
                 <td style={{padding:"14px 20px"}}><strong>{org.name}</strong></td>
                 <td style={{padding:"14px 20px",fontSize:14,color:"#475569"}}>{org.users[0]?.name || "—"}<br/><span style={{fontSize:12,color:"#94a3b8"}}>{org.users[0]?.email || ""}</span></td>
                 <td style={{padding:"14px 20px",color:"#475569"}}>{org._count.users}</td>
-                <td style={{padding:"14px 20px",fontSize:13}}>{org.subscription?.status || "None"}</td>
+                <td style={{padding:"14px 20px",fontSize:13}}><StatusBadge status={org.subscription?.status || "NO_SUB"} /></td>
                 <td style={{padding:"14px 20px"}}>{org.plan ? `${org.plan.name} - $${(org.plan.priceCents)}` : "—"}</td>
                 <td style={{padding:"14px 20px"}}>
 
@@ -140,4 +140,17 @@ export default async function CustomersPage({
     )}
     </div>
   );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string,{bg:string,text:string,label:string}> = {
+    ACTIVE: {bg:"#ecfdf5",text:"#065f46",label:"Active"},
+    TRIALING: {bg:"#fffbeb",text:"#92400e",label:"Trial"},
+    PAST_DUE: {bg:"#fef2f2",text:"#991b1b",label:"Past Due"},
+    CANCELED: {bg:"#f1f5f9",text:"#64748b",label:"Canceled"},
+    UNPAID: {bg:"#fef2f2",text:"#991b1b",label:"Unpaid"},
+    NO_SUB: {bg:"#f1f5f9",text:"#94a3b8",label:"No Subscription"},
+  };
+  const s = styles[status] || styles.NO_SUB;
+  return <span style={{padding:"4px 12px",borderRadius:20,fontSize:12,fontWeight:600,background:s.bg,color:s.text}}>{s.label}</span>;
 }
