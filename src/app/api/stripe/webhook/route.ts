@@ -3,8 +3,8 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { Resend } from 'resend';
 import { SubscriptionSuccess } from '@/emails/SubscriptionSuccess';
-import { CardDeclined } from '@/emails/CardDeclined';
-import { SubscriptionCancelled } from '@/emails/SubscriptionCancelled';
+import { PaymentFailedEmail } from '@/emails/CardDeclined';
+import { CancellationEmail } from '@/emails/SubscriptionCancelled';
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
 export async function POST(req: NextRequest) {
@@ -79,15 +79,31 @@ export async function POST(req: NextRequest) {
             type: invoice.billing_reason || "plan_update", 
           },
         });
-      
+
+        const organization = await prisma.organization.findUnique({ 
+          where: { id: orgId }, 
+          select: { id: true, hasUsedTrial: true }
+        });
+
+        let emailSubject = `Your 30-day MatterGuardian trial is active`;
+        if (organization?.hasUsedTrial) {
+          emailSubject = `Subscription confirmed — receipt for ${invoice.lines.data[0]?.description || "Pro plan"}`;
+        }
+
         await resend.emails.send({
           from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
           to: [customerEmail],
-          subject: 'Payment Confirmed - MatterGuardian',
+          subject: emailSubject,
           react: SubscriptionSuccess({ 
-            name: invoice.customer_name || invoice.customer_email, 
-            planName: invoice.lines.data[0]?.description || "Pro Plan", 
-            amount: `${(invoice.amount_paid / 100).toFixed(2)} ${invoice.currency.toUpperCase()}` 
+            isTrial: organization?.hasUsedTrial? false : true, 
+            trialDays: "30", 
+            firstChargeAmount: `${(invoice.amount_paid / 100).toFixed(2)} ${invoice.currency.toUpperCase()}` ,
+            firstChargeDate: new Date(invoice.lines.data[0].period.start * 1000).toDateString(),
+            planName: invoice.lines.data[0]?.description || "Pro Plan",
+            firstName: invoice.customer_name || invoice.customer_email,
+            periodStart: new Date(invoice.lines.data[0].period.start * 1000).toDateString(), 
+            periodEnd: new Date(invoice.lines.data[0].period.end * 1000).toDateString(), 
+            amountPaid: `${(invoice.amount_paid / 100).toFixed(2)} ${invoice.currency.toUpperCase()}` 
           }),
         });
 
@@ -104,10 +120,11 @@ export async function POST(req: NextRequest) {
         await resend.emails.send({
           from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
           to: [customerEmail],
-          subject: 'Subscription Cancelled - MatterGuardian',
-          react: SubscriptionCancelled({ 
-            name: customerEmail, 
-            expiryDate: new Date(sub.items.data[0].current_period_end * 1000).toLocaleDateString() 
+          subject: 'Your MatterGuardian subscription is cancelled',
+          react: CancellationEmail({ 
+            firstName: customerEmail, 
+            planName: sub.items.data[0].price.product.name,
+            accessEndDate: new Date(sub.items.data[0].current_period_end * 1000).toLocaleDateString()
           }),
         });
       }
@@ -117,14 +134,22 @@ export async function POST(req: NextRequest) {
     case "invoice.payment_failed": {
       const invoice = event.data.object as any;
       if (invoice.subscription) { await prisma.subscription.updateMany({ where: { stripeSubscriptionId: invoice.subscription }, data: { status: "PAST_DUE" } }); }
-      const customerEmail = invoice.customer_email || invoice.customer_name || "Customer";
+      const customerEmail = invoice.customer_address || invoice.customer_name || "Customer";
+      
       try {
         await resend.emails.send({
           from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
           to: [customerEmail],
-          subject: 'Action Required: Your payment was declined',
-          react: CardDeclined({ 
-            name: customerEmail 
+          subject: 'Action needed: we couldn\'t process your MatterGuardian payment',
+          react: PaymentFailedEmail({ 
+            firstName: customerEmail,
+            planName: invoice.lines.data[0]?.description || "Pro Plan",
+            amount: `${(invoice.amount_due / 100).toFixed(2)} ${invoice.currency.toUpperCase()}`,
+            cardBrand: invoice.payment_method_details?.card?.brand || "Card",
+            cardLast4: invoice.payment_method_details?.card?.last4 || "****",
+            declineReason: invoice.payment_intent ? (invoice.payment_intent.last_payment_error?.message || "Unknown reason") : "Unknown reason",
+            nextRetryDate: invoice.next_payment_attempt ? new Date(invoice.next_payment_attempt * 1000).toLocaleDateString() : "soon",
+            gracePeriodEndDate: new Date(invoice.lines.data[0].current_period_end * 1000).toLocaleDateString(),
           }),
         });
       } catch (emailError) {

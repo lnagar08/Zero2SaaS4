@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     await resend.emails.send({
       from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
       to: [email],
-      subject: 'Welcome to MatterGuardian! 🚀',
+      subject: "Welcome to MatterGuardian — here's where to start",
       react: WelcomeEmail({ name: name || "Member" }),
     });
 

@@ -23,7 +23,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { orgId } = await getCurrentOrg();
+    const { orgId, userEmail, userName } = await getCurrentOrg();
     // 1. Authenticate and check if the user is an OWNER
     const session = await getServerSession(authOptions);
 
@@ -74,26 +74,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invitation already sent." }, { status: 400 });
     }
 
-    // 4. Generate a unique secure token and expiry (24 hours)
+    // 4. Generate a unique secure token and expiry (7 days)
     const token = nanoid(32);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     // 6. Construct the signup link
     const inviteLink = `${process.env.NEXTAUTH_URL}/signup?token=${token}`;
- 
+    const roleLabel = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
     // 7. Send the email via Resend
    const organization = await prisma.organization.findUnique({ where: { id: orgId } });
-    const { data, error } = await resend.emails.send({
-      from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
-      to: [email],
-      subject: `Invitation to join ${organization?.name} on MatterGuardian`,
-      react: TeamInvitation({ 
-        invitedByEmail: email || "Team Member", 
-        role: role || "Member",
-        organization: organization?.name || "MatterGuardian",
-        inviteLink
-      }),
-    });
+  const { data, error } = await resend.emails.send({
+        from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
+        to: [email],
+        subject: `${userName} invited you to ${organization?.name} on MatterGuardian`,
+        react: TeamInvitation({ 
+          inviterName: `${userName} (${userEmail})`, 
+          firmName: organization?.name || "MatterGuardian",
+          recipientFirstName: email.split("@")[0],
+          roleLabel: roleLabel,
+          //roleDescription: existingInvitation?.roleDescription || "Member",
+          acceptUrl: inviteLink
+        }),
+      });
 
     if (error || !data?.id) {
       return NextResponse.json(

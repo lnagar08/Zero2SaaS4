@@ -1,53 +1,106 @@
-// emails/TeamInvitation.tsx
-import { Html, Body, Container, Text, Heading, Button, Section, Head, Preview, Hr } from '@react-email/components';
-import { main, container, h1, text, button, logoText } from './styles';
+import {
+  Body,
+  Container,
+  Head,
+  Heading,
+  Html,
+  Link,
+  Preview,
+  Section,
+  Text,
+  Row,
+  Column,
+} from "@react-email/components";
+import * as React from "react";
+import * as styles from "./styles";
 
-interface TeamInvitationProps {
-  invitedByEmail?: string; 
-  role: string;           // Example: 'Admin', 'Editor', 'Viewer'
-  organization: string;   // Example: 'Acme Corp'
-  inviteLink: string;
+interface InviteEmailProps {
+  inviterName: string;
+  firmName: string;
+  recipientFirstName?: string;
+  roleLabel: string;
+  //roleDescription: string;
+  acceptUrl: string;
 }
 
-export const TeamInvitation = ({ 
-  invitedByEmail = "A team member", 
-  role = "Member",
-  organization = "MatterGuardian Org",
-  inviteLink = "#" 
-}: TeamInvitationProps) => (
+export const TeamInvitation = ({
+  inviterName,
+  firmName,
+  recipientFirstName,
+  roleLabel,
+  //roleDescription,
+  acceptUrl,
+}: InviteEmailProps) => (
   <Html>
     <Head />
-    <Preview>Join {organization} on MatterGuardian</Preview>
-    <Body style={main}>
-      <Container style={container}>
-        <Section>
-          <Text style={logoText}>MatterGuardian</Text>
+    <Preview>
+      {inviterName} invited you to join {firmName} on MatterGuardian.
+    </Preview>
+    <Body style={styles.main}>
+      <Container style={styles.container}>
+        {/* Header */}
+        <Section style={styles.header}>
+          <Row>
+            <Column style={{ width: "42px" }}>
+              <span style={styles.logoIcon}>⇄</span>
+            </Column>
+            <Column>
+              <Text style={styles.logoText}>MatterGuardian</Text>
+            </Column>
+          </Row>
         </Section>
 
-        <Heading style={h1}>Team Invitation</Heading>
-        
-        <Text style={text}>
-          Hi there,
-        </Text>
-        <Text style={text}>
-          <strong>{invitedByEmail}</strong> has invited you to join <strong>{organization}</strong> as an <strong>{role}</strong>.
-        </Text>
+        {/* Body Content */}
+        <Section style={styles.content}>
+          <Heading style={styles.h1}>You've been invited to {firmName}.</Heading>
 
-        <Section style={{ textAlign: 'center' as const, margin: '30px 0' }}>
-          <Button href={inviteLink} style={button}>
-            Join {organization}
-          </Button>
+          <Text style={styles.paragraph}>
+            Hi{recipientFirstName ? ` ${recipientFirstName}` : ""},
+          </Text>
+
+          <Text style={styles.paragraph}>
+            <strong style={styles.bold}>{inviterName}</strong> has invited you to join{" "}
+            <strong style={styles.bold}>{firmName}</strong> on MatterGuardian as a{" "}
+            <strong style={styles.bold}>{roleLabel}</strong>.
+          </Text>
+
+          {/* Role Box */}
+          <Section style={styles.receiptBox}>
+            <Text style={styles.roleBadgeLabel}>Your role</Text>
+            <Text style={styles.roleTitle}>{roleLabel}</Text>
+            
+          </Section>
+
+          {/* Accept Button */}
+          <Section style={{ margin: "0 0 24px 0" }}>
+            <Link href={acceptUrl} style={styles.button}>
+              Accept invitation →
+            </Link>
+          </Section>
+
+          {/* Expiration and Fallback link */}
+          <Text style={styles.smallText}>
+            This invitation expires in 7 days. If you weren't expecting it, you can safely ignore this email.
+          </Text>
+          <Text style={{ ...styles.smallText, margin: 0 }}>
+            Trouble with the button? Paste this into your browser:<br />
+            <span style={{ color: "#1d2027", wordBreak: "break-all" }}>{acceptUrl}</span>
+          </Text>
         </Section>
 
-        <Text style={{ ...text, fontSize: '14px', color: '#666' }}>
-          <strong>Role details:</strong> As an {role}, you will have access to the team's shared resources according to your permission level.
-        </Text>
-
-        <Hr style={{ borderTop: '1px solid #eee', margin: '30px 0' }} />
-        <Text style={{ ...text, fontSize: '12px', color: '#888', textAlign: 'center' as const }}>
-          MatterGuardian
-        </Text>
+        {/* Footer */}
+        <Section style={styles.footerWrapper}>
+          <Text style={styles.footerBrand}>MatterGuardian</Text>
+          <Text style={styles.footerText}>
+            This email was sent from an unmonitored address. For help, contact{" "}
+            <Link href="mailto:hello@matterguardian.com" style={styles.footerLink}>
+              hello@matterguardian.com
+            </Link>.
+          </Text>
+        </Section>
       </Container>
     </Body>
   </Html>
 );
+
+export default TeamInvitation;

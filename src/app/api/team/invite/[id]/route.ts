@@ -18,7 +18,7 @@ export async function POST(
 
     const { id } = await params; 
 
-    const { orgId } = await getCurrentOrg();
+    const { orgId, userEmail, userName } = await getCurrentOrg();
     // 1. Authenticate and check if the user is an OWNER
     const session = await getServerSession(authOptions);
 
@@ -50,18 +50,20 @@ export async function POST(
 
     // 6. Construct the signup link
     const inviteLink = `${process.env.NEXTAUTH_URL}/signup?token=${token}`;
-
+    const roleLabel = existingInvitation.role.charAt(0).toUpperCase() + existingInvitation.role.slice(1).toLowerCase();
     const organization = await prisma.organization.findUnique({ where: { id: orgId } });
     
     const { data, error } = await resend.emails.send({
       from: `MatterGuardian <${process.env.SITE_MAIL_NOREPLAY}>`,
-      to: [existingInvitation?.email],
-      subject: `Invitation to join ${organization?.name} on MatterGuardian`,
+      to: [existingInvitation.email],
+      subject: `${userName} invited you to ${organization?.name} on MatterGuardian`,
       react: TeamInvitation({ 
-        invitedByEmail: existingInvitation?.email || "Team Member", 
-        role: existingInvitation?.role || "Member",
-        organization: organization?.name || "MatterGuardian",
-        inviteLink
+        inviterName: `${userName} (${userEmail})`, 
+        firmName: organization?.name || "MatterGuardian",
+        recipientFirstName: existingInvitation.email.split("@")[0],
+        roleLabel: roleLabel,
+        //roleDescription: existingInvitation?.roleDescription || "Member",
+        acceptUrl: inviteLink
       }),
     });
 
