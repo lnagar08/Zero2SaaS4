@@ -97,7 +97,7 @@ export const SubscriptionSuccess = ({
               {isTrial && (
                 <Row style={styles.receiptRow}>
                   <Column style={styles.label}>Next charge</Column>
-                  <Column style={styles.value}>{firstChargeAmount} on {firstChargeDate}</Column>
+                  <Column style={styles.value}>{firstChargeAmount} on {periodEnd}</Column>
                 </Row>
               )}
               <Row style={styles.hr}>
