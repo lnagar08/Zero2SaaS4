@@ -19,7 +19,7 @@ export async function PATCH(
 
     const { id: matterId } = await params; // Matter ID
     const { orgId } = await getCurrentOrg(); // Tenant Check
-    
+    // Internal Account check for without subscription access
     const isInternal = await checkInternalAccount();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },

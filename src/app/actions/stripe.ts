@@ -73,7 +73,7 @@ export async function handleSubscriptionAction(priceId: string) {
         success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/billing?success=true`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/billing?canceled=true`,
         subscription_data: {
-          trial_period_days: 14,
+          trial_period_days: 30, // Optional: Set a trial period if desired
           metadata: { orgId: orgId },
         },
       });

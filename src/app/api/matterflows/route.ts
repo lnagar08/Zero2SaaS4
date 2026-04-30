@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { orgId } = await getCurrentOrg();
-    
+    // Internal Account check for without subscription access
     const isInternal = await checkInternalAccount();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },

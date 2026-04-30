@@ -26,6 +26,7 @@ interface SubscriptionSuccessProps {
   amountPaid: string;
   dashboardUrl?: string;
   billingUrl?: string;
+  nextChargeAmt?: string;
 }
 
 export const SubscriptionSuccess = ({
@@ -40,6 +41,7 @@ export const SubscriptionSuccess = ({
   amountPaid,
   dashboardUrl=process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : "https://app.matterguardian.com/dashboard",
   billingUrl=process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/settings?tab=billing&success=true` : "https://app.matterguardian.com/settings?tab=billing&success=true",
+  nextChargeAmt
 }: SubscriptionSuccessProps) => {
   const previewText = isTrial 
     ? `Your ${trialDays}-day trial is active. Card not charged today.` 
@@ -97,7 +99,7 @@ export const SubscriptionSuccess = ({
               {isTrial && (
                 <Row style={styles.receiptRow}>
                   <Column style={styles.label}>Next charge</Column>
-                  <Column style={styles.value}>{firstChargeAmount} on {periodEnd}</Column>
+                  <Column style={styles.value}>{nextChargeAmt} on {periodEnd}</Column>
                 </Row>
               )}
               <Row style={styles.hr}>

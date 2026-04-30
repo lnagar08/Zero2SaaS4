@@ -10,7 +10,7 @@ export async function POST(
   try {
     const { id } = await params;
     const { orgId } = await getCurrentOrg(); // Tenant Check
-    
+    // Internal Account check for without subscription access
     const isInternal = await checkInternalAccount();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },

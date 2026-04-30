@@ -68,7 +68,7 @@ export async function DELETE(
     }
 
     const { orgId } = await getCurrentOrg();
-    
+    // Internal Account check for without subscription access
     const isInternal = await checkInternalAccount();
     const sub = await prisma.subscription.findUnique({
       where: { orgId },

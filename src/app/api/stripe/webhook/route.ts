@@ -85,6 +85,8 @@ export async function POST(req: NextRequest) {
           select: { id: true, hasUsedTrial: true }
         });
 
+        const plan = await prisma.plan.findUnique({ where: { stripePriceId: invoice.lines.data[0]?.pricing?.price_details?.price || '' } });
+        
         let emailSubject = `Your 30-day MatterGuardian trial is active`;
         if (organization?.hasUsedTrial) {
           emailSubject = `Subscription confirmed — receipt for ${invoice.lines.data[0]?.description || "Pro plan"}`;
@@ -103,7 +105,8 @@ export async function POST(req: NextRequest) {
             firstName: invoice.customer_name || invoice.customer_email,
             periodStart: new Date(invoice.lines.data[0].period.start * 1000).toDateString(), 
             periodEnd: new Date(invoice.lines.data[0].period.end * 1000).toDateString(), 
-            amountPaid: `${(invoice.amount_paid / 100).toFixed(2)} ${invoice.currency.toUpperCase()}` 
+            amountPaid: `${(invoice.amount_paid / 100).toFixed(2)} ${invoice.currency.toUpperCase()}`,
+            nextChargeAmt: `${plan?.priceCents.toFixed(2)} ${invoice.currency.toUpperCase()}`
           }),
         });
 
